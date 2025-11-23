@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="script.module.cscrap" version="1.0.0" name="cscrap" provider-name="CasX">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+        <import addon="script.module.requests"/>
+    </requires>
+    <extension point="xbmc.python.module" library="lib" />
+    <extension point="xbmc.python.pluginsource" library="lib" />
+    <extension point="xbmc.addon.metadata">
+        <summary lang="de_DE">cscrap</summary>
+        <summary lang="en_GB">cscrap</summary>
+        <assets>
+			<icon></icon>
+			<fanart></fanart>
+			<banner></banner>
+		</assets>
+    </extension>
+</addon>

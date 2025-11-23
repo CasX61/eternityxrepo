@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="eternityxrepo" name="Eternity X repo" version="1.0.0" provider-name="CasX">
+    <extension point="xbmc.addon.repository" name="Eternity Repository">
+        <dir>
+            <info compressed="false">https://raw.githubusercontent.com/CasX61/eternityxrepo.github.io/master/repo/zips/addons.xml</info>
+            <checksum>https://raw.githubusercontent.com/CasX61/eternityxrepo.github.io/master/repo/zips/addons.xml.md5</checksum>
+            <datadir zip="true">https://raw.githubusercontent.com/CasX61/eternityxrepo.github.io/master/repo/zips/</datadir>
+        </dir>
+        <dir>
+            <info compressed="false">https://raw.githubusercontent.com/Gujal00/smrzips/master/addons.xml</info>
+            <checksum>https://raw.githubusercontent.com/Gujal00/smrzips/master/addons.xml.md5</checksum>
+            <datadir zip="true">https://raw.githubusercontent.com/Gujal00/smrzips/master/zips/</datadir>
+        </dir>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary>eternityxrepo</summary>
+        <description>Eternity x repo</description>
+        <disclaimer></disclaimer>
+        <platform>all</platform>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart>fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>

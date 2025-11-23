@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+    <category label="Allgemein">
+        <setting id="hosts.mode" type="enum" label="Standard-Aktion" values="Dialog|Verzeichnis|Autoplay" default="0" />
+        <setting id="scrapers.timeout" type="slider" label="Zeitlimit für Indexseiten" default="35" range="10,60" option="int" />
+        <setting id="fanart" type="bool" label="Fanart verwenden" default="true" />
+        <setting id="search.doku" type="bool" label="Auch nach Dokumentationen suchen" default="false" />
+        <setting type="lsep" label="Einstellungen RequestHandler" />
+
+        <setting default="10" id="requestTimeout" label="Timeout für HTTP-Anfragen in Sekunden" option="int" range="1,1,60" type="slider" />
+        <setting default="600" id="cacheTime" label="Cachezeit für Webseiten (HtmlCache) in Sekunden" option="int" range="0,60,1800" type="slider" />
+        <setting default="true" id="volatileHtmlCache" type="bool" label= "HTML Inhalte werden nur im RAM zwischengespeichert" visible="true"/>
+        <setting default="2" id="cacheDeltaDay" label="Html Cache nach Tage löschen" option="int" range="1,1,7" type="slider" />
+        <setting id="delHtmlCache" label="[B][COLOR red]Html Cache einmalig bei Neustart löschen[/COLOR][/B]" type="bool" default="false" />
+        <setting type="lsep" label="DNS-Sperre Umgehung" />
+        <setting id="bypassDNSlock" type="bool" label="DNS-Sperre umgehen (DoH)" default="false" />
+        <setting type="text" label="[COLOR blue]Nutzt DNS-over-HTTPS (Cloudflare 1.1.1.1) für blockierte Seiten.[CR]Nur für Scraper die bypass_dns=True nutzen (z.B. Filmpalast).[CR]Umgeht Provider-DNS-Sperren. Bei Problemen deaktivieren.[/COLOR]" />
+        <setting type="lsep" label="Status - gesehen / ungesehen" />
+        <setting type="text" label="[COLOR blue]Auf leistungsschwachen Geräten benötigt diese [CR]Komfortfunktion etwas mehr Zeit![/COLOR]" />
+        <setting id="status.refresh" type="text" label="Status aktualisieren (refresh)" default="" visible="false"/>
+        <setting id="status.refresh.movies" type="bool" label="Filme - Status aktualisieren (refresh)" default="true" />
+        <setting id="status.refresh.episodes" type="bool" label="Episoden - Status aktualisieren (refresh)" default="true" />
+        <setting id="status.position" type="bool" label="Status - Bei Serien die aktuelle Position setzen" default="true" />
+        <setting id="status.debug" type="bool" label="Debug" default="false" />
+    </category>
+    <category label="Indexseiten (DE)">
+        <setting type="text" label="[COLOR blue]ACHTUNG:  Die folgenden Optionen werden sofort[/COLOR]" />
+        <setting type="text" label="[COLOR blue]und für [B]alle[/B] Indexseiten ausgeführt![/COLOR]" />
+        <setting type="sep"/>
+        <!--<setting label="Einstellung auf Defaults setzen" type="action" action="RunPlugin(plugin://plugin.video.eternity/?action=settings&amp;subaction=defaultsGerman)"/> -->
+        <setting label="Alle Quellen aktivieren" type="action" action="RunPlugin(plugin://plugin.video.eternity/?action=settings&amp;subaction=toggleGerman&amp;setting=true)" option=""/>
+        <setting label="Alle Quellen deaktivieren" type="action" action="RunPlugin(plugin://plugin.video.eternity/?action=settings&amp;subaction=toggleGerman&amp;setting=false)" option=""/>
+        <!-- <setting type="lsep" label="Scrapers" /> -->
+        <setting type="sep"/>
+        <setting id="provider.aniworld" type="bool"  label="ANIWORLD   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true"/>
+        <setting id="provider.aniworld.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.aniworld.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>
+        <setting id="provider.einschalten" type="bool" label="EINSCHALTEN   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
+        <setting id="provider.einschalten.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.einschalten.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>
+        <setting id="provider.filmpalast" type="bool" label="FILMPALAST   |  [B][COLOR blue] Filme &amp; Serien[/COLOR][/B]" default="true" />
+        <setting id="provider.filmpalast.domain" label="Domain (Standard: filmpalast.to)" type="text" default="filmpalast.to" visible="true"/>
+        <setting id="provider.filmpalast.check" label="Check" type="bool" default="false" visible="false"/>
+        <!--<setting id="provider.flimmerstube" type="bool" label="FLIMMERSTUBE   |  [B][COLOR blue] Filme &amp; Serien[/COLOR][/B]" default="false" />
+        <setting id="provider.flimmerstube.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.flimmerstube.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>-->
+        <!--<setting id="provider.huhu" type="bool" label="HUHU  |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
+        <setting id="provider.huhu.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.huhu.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>-->
+        <setting id="provider.kinoger" type="bool" label="KINOGER   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
+        <setting id="provider.kinoger.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.kinoger.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>
+        <setting id="provider.megakino" type="bool" label="MEGAKINO   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
+        <setting id="provider.megakino.domain" label="Domain (Standard: w1.megakino.do)" type="text" default="w1.megakino.do" visible="true"/>
+        <setting id="provider.megakino.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>
+        <setting id="provider.moflix" type="bool" label="MOFLIX-STREAM   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
+        <setting id="provider.moflix.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.moflix.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>
+        <setting id="provider.movie2k" type="bool" label="MOVIE2k   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true"/>
+        <setting id="provider.movie2k.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.movie2k.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>
+        <setting id="provider.serienstream" type="bool"  label="SERIENSTREAM   |   [B][COLOR green]Serien[/COLOR][/B]" default="true"/>
+        <setting id="provider.serienstream.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.serienstream.check" label="Check" type="bool" default="false" visible="false"/>
+        <!--<setting type="sep"/>
+        <setting id="provider.serien-stream" type="bool"  label="Serien-Stream   |   [B][COLOR green]Serien[/COLOR][/B]" default="true"/>
+        <setting id="provider.serien-stream.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
+        <setting id="provider.serien-stream.check" label="Check" type="bool" default="true" visible="false"/>-->
+    </category>
+    <category label="Wiedergabe">
+        <setting id="progress.dialog" type="enum" label="Fortschrittsdialog" values="Vordergrund|Hintergrund" default="0" />
+        <setting id="prem.identify" type="enum" label="Textfarbe für Premium-Links" values="Blau|Rot|Gelb|Altrosa|Cyan|Grasgrün|Gold|Magenta|Gelbgrün|Ohne Farbe" default="0" />
+        <setting type="lsep" label="Dateinanbieter-Filter" />
+        <setting id="hosts.quality" type="enum" label="Höchste Qualität" values="4K|1440p|1080p|720p|480p" default="0" />
+        <setting id="hosts.sort.priority" type="bool" label="Indexseiten bei Serien nach Priorität sortieren" default="true" />
+        <setting id="hosts.sort.provider" type="bool" label="Indexseiten nach Anbieter sortieren" default="false" />
+        <setting id="hosts.refresh" type="text" label="Status aktualisieren (refresh)" default="" visible="true"/>
+        <setting id="hosts.limit" type="bool" label="Limit Hosteranzahl" default="False" />
+        <setting id="hosts.limit.num" type="slider" label="Liste begrenzen auf:" default="15" range="5,50" option="int" visible="eq(-1,true)"/>
+        <setting id="hosts.filter" type="text" label="Hoster ausschließen (Liste)" default=""/>
+        <setting type="lsep" label="Bei Wiedergabe-Start..." />
+        <setting id="bookmarks" type="bool" label="Fortsetzen" default="true" />
+        <setting id="bookmarks.auto" type="bool" label="Automatisch Fortsetzen" default="true" enable="!eq(-1,false)" />
+    </category>
+    <category label="Trakt">
+        <setting type="text" label="[COLOR skyblue]Synchronisiere deine Film/Serien-Collection mit Trakt.tv[/COLOR]" />
+
+        <!-- Hidden settings -->
+        <setting id="trakt.isauthed" type="bool" visible="false" default="false" />
+        <setting id="trakt.user.token" type="text" visible="false" default="" />
+        <setting id="trakt.refreshtoken" type="text" visible="false" default="" />
+        <setting id="trakt.token.expires" type="text" visible="false" default="" />
+
+        <setting type="sep" />
+
+        <!-- User Info -->
+        <setting type="lsep" label="Konto Status" />
+        <setting id="trakt.user.name" type="text" label="Benutzername" enable="false" default="" />
+
+        <setting type="sep" />
+
+        <!-- Auth Buttons (always visible, code handles logic) -->
+        <setting type="lsep" label="Autorisierung" />
+        <setting id="open_trakt_auth" type="action" label="Trakt Autorisieren" action="RunPlugin(plugin://plugin.video.eternity/?action=authTrakt)" option="close" />
+        <setting id="revoke_trakt_auth" type="action" label="Autorisierung entfernen" action="RunPlugin(plugin://plugin.video.eternity/?action=revokeTrakt)" option="close" />
+
+        <setting type="sep" />
+
+        <!-- Indicators -->
+        <setting type="lsep" label="Anzeige-Einstellungen" />
+        <setting id="indicators.alt" type="enum" label="Gesehen/Ungesehen Status" values="Lokal|Trakt" default="0" />
+        <setting id="indicators" type="text" visible="false" default="Local" />
+
+        <setting type="sep" />
+
+        <!-- Notifications -->
+        <setting type="lsep" label="Benachrichtigungen" />
+        <setting id="trakt.general.notifications" type="bool" label="Trakt Benachrichtigungen anzeigen" default="true" />
+        <setting id="trakt.server.notifications" type="bool" label="Trakt Server Benachrichtigungen" default="true" />
+
+        <setting type="sep" />
+
+        <!-- Scrobble -->
+        <setting type="lsep" label="Synchronisierung" />
+        <setting id="trakt.scrobble" type="bool" label="Automatische Synchronisierung beim Abspielen" default="true" />
+        <setting id="markwatched.percent" type="slider" label="Als 'Gesehen' markieren ab (%)" default="85" range="70,5,95" option="int" />
+        <setting id="trakt.scrobble.notify" type="bool" label="Benachrichtigung bei Scrobble" default="false" />
+        <setting type="text" label="[COLOR blue]Synchronisiert automatisch mit Trakt während du Inhalte ansiehst.[/COLOR]" />
+        <setting type="text" label="[COLOR blue]Speichert Fortschritt bei Abbruch, markiert als 'gesehen' ab Schwellenwert.[/COLOR]" />
+    </category>
+    <category label="Bibliothek">
+        <setting type="text" label="[COLOR skyblue]Füge Filme und Serien zu deiner Kodi-Bibliothek hinzu[/COLOR]" />
+        <setting type="text" label="[COLOR skyblue]Erstellt .strm Dateien für deine lokale Videobibliothek[/COLOR]" />
+
+        <setting type="sep" />
+
+        <!-- Library Paths -->
+        <setting type="lsep" label="Bibliotheks-Pfade" />
+        <setting id="library.movie" type="folder" label="Filme-Ordner" default="special://userdata/addon_data/plugin.video.eternity/Movies" />
+        <setting id="library.tv" type="folder" label="Serien-Ordner" default="special://userdata/addon_data/plugin.video.eternity/TVShows" />
+        <setting type="text" label="[COLOR blue]Hinweis: Klicke auf den Ordner-Button zum Durchsuchen.[/COLOR]" />
+
+        <setting type="sep" />
+
+        <!-- Library Options -->
+        <setting type="lsep" label="Optionen" />
+        <setting id="library.update" type="bool" label="Bibliothek nach Hinzufügen aktualisieren" default="true" />
+        <setting id="library.clean" type="bool" label="Bibliothek vor Update bereinigen" default="false" />
+        <setting id="library.check" type="bool" label="Duplikat-Check (via Kodi)" default="true" />
+        <setting type="text" label="[COLOR blue]Duplikat-Check: Prüft ob Film/Serie bereits in Kodi-Bibliothek.[/COLOR]" />
+
+        <setting type="sep" />
+
+        <!-- Notifications -->
+        <setting type="lsep" label="Benachrichtigungen" />
+        <setting id="library.notifications" type="bool" label="Bibliotheks-Benachrichtigungen anzeigen" default="true" />
+
+        <setting type="sep" />
+
+        <!-- Auto-Update Service -->
+        <setting type="lsep" label="Auto-Update Service" />
+        <setting id="library.service.update" type="bool" label="Auto-Update aktivieren" default="true" />
+        <setting id="library.service.hours" type="slider" label="Update-Intervall (Stunden)" default="6" range="1,1,24" option="int" enable="eq(-1,true)" />
+        <setting type="text" label="[COLOR blue]Prüft automatisch auf neue Episoden in deiner Bibliothek.[/COLOR]" />
+        <setting type="text" label="[COLOR blue]Läuft im Hintergrund, aktualisiert nur wenn nicht abgespielt wird.[/COLOR]" />
+
+        <setting type="sep" />
+
+        <!-- Actions -->
+        <setting type="lsep" label="Aktionen" />
+        <setting id="library.update.manual" type="action" label="Bibliothek jetzt aktualisieren" action="RunPlugin(plugin://plugin.video.eternity/?action=library_update)" option="close" />
+        <setting id="library.clean.manual" type="action" label="Bibliothek jetzt bereinigen" action="RunPlugin(plugin://plugin.video.eternity/?action=library_clean)" option="close" />
+        <setting type="text" label="[COLOR yellow]Warnung: Bereinigung entfernt alle ungültigen Einträge![/COLOR]" />
+    </category>
+    <category label="Konten">
+        <setting type="lsep" label="Konto [B]SerienStream.to[/B]"/>
+        <setting id="serienstream.user" type="text" label="Email" default=""/>
+        <setting id="serienstream.pass" type="text" option="hidden" label="Password" default=""/>
+        <setting type="lsep" label="TMDb" />
+        <setting id="api.tmdb" type="text" option="hidden" label="API-Key" default="637b0f719c269e9fb609f34f5c35b7e6" />
+        <setting type="lsep" label="FANART.TV" />
+        <setting id="api.fanart.tv" type="text" label="API-Key" option="hidden" default="afac434b5463ea49ce5ff405fe600b3e" />
+        <setting type="lsep" label="Debrid-Service" />
+        <setting type="text" label="[COLOR blue]Konfiguriere Debrid-Dienste in den ResolveURL-Einstellungen.[/COLOR]" />
+        <setting type="text" label="[COLOR blue]Unterstützt: Real-Debrid, Premiumize, AllDebrid, etc.[/COLOR]" />
+        <setting id="open_resolveurl_settings" type="action" label="ResolveURL-Einstellungen" enable="true" option="close" action="RunPlugin(plugin://plugin.video.eternity/?action=openResolveURLSettings)" />
+        <setting type="lsep" label="Konto [B]opensubtitles.org[/B]"/>
+        <!-- <setting id="subtitles.os_user" type="text" label="UserName" default=""/>
+        <setting id="subtitles.os_pass" type="text" option="hidden" label="Password" default=""/> -->
+    </category>
+    <category label="Downloads / Untertitel">
+        <setting id="downloads" type="bool" label="Herunterladen aktivieren" default="false" />
+        <!-- <setting type="sep" /> -->
+        <setting type="lsep" label="Bitte Ordnerpfade eingeben" />
+        <!--<<setting type="text" label="oder [COLOR blue]smb://ServerIP/path_to_files/ | nfs://ServerIP/path_to_files/[/COLOR]" /> -->
+        <setting label="[COLOR blue]Hier Hilfe zum Syntax für den Ordnerpfad[/COLOR]" type="action" action="RunPlugin(plugin://plugin.video.eternity/?action=settings&amp;subaction=downloadInfo)" option=""/>
+        <setting id="download.movie.path" type="text" label="Filme" enable="!eq(-3,false)" default="" />
+        <!--<setting id="download.tv.path" type="folder" label="TV-Serien" enable="!eq(-4,false)" default="" /> -->
+        <setting id="download.tv.path" type="text" label="TV-Serien" enable="!eq(-4,false)" default="" />
+        <setting type="lsep" label="[CR]" />-->
+        <!--<setting type="text" label="Herunterladen ist standardmäßig deaktiviert." />-->
+        <setting type="sep" />
+        <setting id="subtitles" type="bool" label="Untertitel aktivieren" default="false" />
+        <setting type="text" label="[COLOR blue]Konto auf [B]opensubtitles.org[/B] einrichten und[CR]die Zugandsdaten unter Einstellungen / Konten eintragen![CR][/COLOR]" visible="!eq(-1,false)"/>
+        <setting type="lsep" label="Konto [B]opensubtitles.org[/B]"/>
+        <setting id="subtitles.os_user" type="text" label="UserName" default=""/>
+        <setting id="subtitles.os_pass" type="text" option="hidden" label="Password" default=""/>
+        <setting type="sep" />
+        <setting id="subtitles.lang.1" type="select" label="Hauptsprache" values="Afrikaans|Albanian|Arabic|Armenian|Basque|Bengali|Bosnian|Breton|Bulgarian|Burmese|Catalan|Chinese|Croatian|Czech|Danish|Dutch|English|Esperanto|Estonian|Finnish|French|Galician|Georgian|German|Greek|Hebrew|Hindi|Hungarian|Icelandic|Indonesian|Italian|Japanese|Kazakh|Khmer|Korean|Latvian|Lithuanian|Luxembourgish|Macedonian|Malay|Malayalam|Manipuri|Mongolian|Montenegrin|Norwegian|Occitan|Persian|Polish|Portuguese|Portuguese(Brazil)|Romanian|Russian|Serbian|Sinhalese|Slovak|Slovenian|Spanish|Swahili|Swedish|Syriac|Tagalog|Tamil|Telugu|Thai|Turkish|Ukrainian|Urdu" enable="!eq(-3,false)" default="German" />
+        <setting id="subtitles.lang.2" type="select" label="Zweitsprache" values="Afrikaans|Albanian|Arabic|Armenian|Basque|Bengali|Bosnian|Breton|Bulgarian|Burmese|Catalan|Chinese|Croatian|Czech|Danish|Dutch|English|Esperanto|Estonian|Finnish|French|Galician|Georgian|German|Greek|Hebrew|Hindi|Hungarian|Icelandic|Indonesian|Italian|Japanese|Kazakh|Khmer|Korean|Latvian|Lithuanian|Luxembourgish|Macedonian|Malay|Malayalam|Manipuri|Mongolian|Montenegrin|Norwegian|Occitan|Persian|Polish|Portuguese|Portuguese(Brazil)|Romanian|Russian|Serbian|Sinhalese|Slovak|Slovenian|Spanish|Swahili|Swedish|Syriac|Tagalog|Tamil|Telugu|Thai|Turkish|Ukrainian|Urdu" enable="!eq(-4,false)" default="English" />
+        <setting id="subtitles.utf" type="bool" label="Untertitel nach UTF-8 umwandeln" enable="!eq(-5,false)" default="false" />
+    </category>
+</settings>
