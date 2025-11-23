@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="ADDON_ID_HERE" name="Eternity X repo" version="1.0.0" provider-name="CasX">
+<addon id="eternityxrepo" name="Eternity X repo" version="1.0.0" provider-name="CasX">
     <extension point="xbmc.addon.repository" name="Eternity Repository">
         <dir>
             <info compressed="false">https://raw.githubusercontent.com/CasX61/eternityxrepo.github.io/master/repo/zips/addons.xml</info>
