@@ -160,8 +160,50 @@ elif action == 'playURL':
         control.infoDialog("Keinen Video Link gefunden", sound=True, icon='WARNING', time=1000)
 
 elif action == 'UpdatePlayCount':
+    # Update playcount in local DB AND sync to Trakt!
+    import ast
     from resources.lib import playcountDB
+    from resources.lib.modules import playcount
+
+    # Parse metadata
+    meta = ast.literal_eval(params.get('meta', '{}'))
+    mediatype = meta.get('mediatype', '')
+    playcount_value = int(params.get('playCount', 0))
+
+    # Update local database
     playcountDB.UpdatePlaycount(params)
+
+    # Sync to Trakt (if authenticated)
+    try:
+        if mediatype == 'movie':
+            # Movie: Use imdb_id
+            imdb_id = meta.get('imdb', '') or meta.get('imdb_id', '')
+            if not imdb_id.startswith('tt'):
+                imdb_id = 'tt' + imdb_id
+            title = meta.get('systitle', '') or meta.get('title', '')
+
+            # Mark as watched (7) or unwatched (6)
+            watched = 7 if playcount_value == 1 else 6
+            playcount.movies(title, imdb_id, watched)
+
+        elif mediatype == 'episode':
+            # Episode: Use imdb_id, tvdb_id, season, episode
+            imdb_id = meta.get('imdb', '') or meta.get('imdb_id', '')
+            if imdb_id and not imdb_id.startswith('tt'):
+                imdb_id = 'tt' + imdb_id
+            tvdb_id = meta.get('tvdb', '') or meta.get('tvdb_id', '')
+            season = meta.get('season', '')
+            episode = meta.get('episode', '')
+            title = meta.get('systitle', '') or meta.get('tvshowtitle', '') or meta.get('title', '')
+
+            # Mark as watched (7) or unwatched (6)
+            watched = 7 if playcount_value == 1 else 6
+            playcount.episodes(title, imdb_id, tvdb_id, season, episode, watched)
+
+    except Exception as e:
+        import xbmc
+        xbmc.log('[Eternity] UpdatePlayCount Trakt sync error: %s' % str(e), xbmc.LOGERROR)
+
     control.execute('Container.Refresh')
 
 # listings -------------------------------
@@ -244,6 +286,31 @@ elif action == 'movieUserlists':
     from resources.lib.indexers import movies
     movies.movies().userlists()
 
+elif action == 'moviesUnfinished':
+    # Umbrella Line 171: Unfinished Movies
+    # Uses movies_extended.py (like episodes_extended.py)
+    from resources.lib.indexers import movies
+    from resources.lib.indexers.movies_extended import MoviesExtended
+    movies_inst = movies.movies()
+    movies_ext = MoviesExtended(movies_inst)
+    url = params.get('url', 'traktunfinished')
+    movies_ext.unfinished(url)
+
+elif action == 'moviesHistory':
+    # Umbrella Line 172: Movie History
+    # Uses movies_extended.py
+    from resources.lib.indexers import movies
+    from resources.lib.indexers.movies_extended import MoviesExtended
+    movies_inst = movies.movies()
+    movies_ext = MoviesExtended(movies_inst)
+    url = params.get('url', 'trakthistory')
+    movies_ext.history(url)
+
+elif action == 'movies_LikedLists':
+    # Umbrella Line 175: Movie Liked Lists
+    from resources.lib.indexers import movies
+    movies.movies()._showLikedListsMenu()
+
 # tvshows ---------------------------------
 elif action == 'tvshows': # 'tvshowPage'
     from resources.lib.indexers import tvshows
@@ -256,6 +323,11 @@ elif action == 'tvshowsSearch':
 elif action == 'tvUserlists':
     from resources.lib.indexers import tvshows
     tvshows.tvshows().userlists()
+
+elif action == 'shows_LikedLists':
+    # Umbrella Line 290: TV Shows Liked Lists
+    from resources.lib.indexers import tvshows
+    tvshows.tvshows()._showLikedListsMenu()
 
 # seasons ---------------------------------
 elif action == 'seasons':
@@ -275,6 +347,45 @@ elif action == 'episodes':
         episodes.episodes().getTraktProgress()
     else:
         episodes.episodes().get(params)
+
+# episodes UMBRELLA Extended ----------------
+elif action == 'episodesUnfinished':
+    # Umbrella Line 277: Unfinished Episodes
+    from resources.lib.indexers import episodes
+    episodes.episodes().getTraktUnfinished()
+
+elif action == 'calendar':
+    # Umbrella Lines 278, 282-285: Calendar methods
+    from resources.lib.indexers import episodes
+    from resources.lib.indexers.episodes_extended import EpisodesExtended
+    url = params.get('url', '')
+    ep_extended = EpisodesExtended(episodes.episodes())
+    ep_extended.calendar(url)
+
+elif action == 'upcomingProgress':
+    # Umbrella Line 281: Upcoming Progress
+    from resources.lib.indexers import episodes
+    from resources.lib.indexers.episodes_extended import EpisodesExtended
+    url = params.get('url', 'progress')
+    ep_extended = EpisodesExtended(episodes.episodes())
+    ep_extended.upcoming_progress(url)
+
+# tvshows UMBRELLA Extended ----------------
+elif action == 'shows_progress':
+    # Umbrella Line 279: Show Progress
+    from resources.lib.indexers import tvshows
+    from resources.lib.indexers.tvshows_extended import TVShowsExtended
+    url = params.get('url', 'progresstv')
+    tv_extended = TVShowsExtended(tvshows.tvshows())
+    tv_extended.tvshow_progress(url)
+
+elif action == 'shows_watched':
+    # Umbrella Line 280: Watched Shows
+    from resources.lib.indexers import tvshows
+    from resources.lib.indexers.tvshows_extended import TVShowsExtended
+    url = params.get('url', 'watchedtv')
+    tv_extended = TVShowsExtended(tvshows.tvshows())
+    tv_extended.tvshow_watched(url)
 
 # sources ---------------------------------
 elif action == 'play':

@@ -23,9 +23,9 @@ class navigator:
 		self.addDirectoryItem("TV-Serien", 'tvNavigator', 'tvshows.png', 'DefaultTVShows.png')
 
 		# Show Trakt menus ALWAYS (show notification if not authenticated)
-		self.addDirectoryItem("Meine Filme", 'myMoviesNavigator', 'trakt.png', 'DefaultMovies.png')
-		self.addDirectoryItem("Meine TV-Serien", 'myTVNavigator', 'trakt.png', 'DefaultTVShows.png')
-		self.addDirectoryItem("Meine Listen", 'myListsNavigator', 'trakt.png', 'DefaultFolder.png')
+		self.addDirectoryItem("Meine Filme", 'myMoviesNavigator', 'movies.png', 'DefaultMovies.png')
+		self.addDirectoryItem("Meine TV-Serien", 'myTVNavigator', 'tvshows.png', 'DefaultTVShows.png')
+		self.addDirectoryItem("Meine Listen", 'myListsNavigator', 'genres.png', 'DefaultFolder.png')
 
 		downloads = True if control.getSetting('downloads') == 'true' and (
 				len(control.listDir(control.getSetting('download.movie.path'))[0]) > 0 or len(
@@ -80,77 +80,87 @@ class navigator:
 		self.addDirectoryItem("Darsteller/Crew (TV-Serien)", 'personSearch&media_type=tv', '_people-search.png', 'DefaultTVShows.png', isFolder=False)
 		self._endDirectory()
 
-	def myMovies(self):
-		"""Meine Filme - Trakt Integration"""
+	def myMovies(self, lite=False):
+		"""Meine Filme - 1:1 Umbrella Implementation (Lines 155-183)"""
 		from resources.lib.modules import trakt
 
-		# Check if user is authenticated
+		# Umbrella Line 156: accountCheck
 		if not trakt.getTraktCredentialsInfo():
-			# Show notification and offer to authenticate
 			control.infoDialog('Bitte verbinde dich mit Trakt um diese Funktion zu nutzen', heading='Trakt', sound=True, icon='INFO')
-			# Add button to authenticate
 			self.addDirectoryItem("[COLOR skyblue][B]Trakt Konto verbinden[/B][/COLOR]", 'authTrakt', 'trakt.png', 'DefaultAddonProgram.png', isFolder=False)
 			self._endDirectory()
 			return
 
-		# User is authenticated - show all Trakt features
-		# Phase 1.6: Unfinished Content
-		self.addDirectoryItem("[B]Trakt[/B] - Unfertige Filme", 'movies&url=trakt_unfinished', 'trakt.png', 'DefaultInProgressShows.png')
+		# Umbrella Lines 169-175: TRAKT Section
+		traktCredentials = trakt.getTraktCredentialsInfo()
+		traktIndicators = trakt.getTraktIndicatorsInfo()
 
-		# Existing items
-		self.addDirectoryItem("[B]Trakt[/B] - Watchlist", 'movies&url=trakt_watchlist', 'trakt.png', 'DefaultMovies.png')
-		self.addDirectoryItem("[B]Trakt[/B] - Collection", 'movies&url=trakt_collection', 'trakt.png', 'DefaultMovies.png')
-		self.addDirectoryItem("[B]Trakt[/B] - History", 'movies&url=trakt_history', 'trakt.png', 'DefaultMovies.png')
+		if traktCredentials:
+			if traktIndicators:
+				# Umbrella Line 171: Unfinished Movies (NO underscore: traktunfinished!)
+				self.addDirectoryItem('Angefangene Filme', 'moviesUnfinished&url=traktunfinished', 'movies.png', 'DefaultInProgressShows.png', queue=True)
+				# Umbrella Line 172: History (NO underscore: trakthistory!)
+				self.addDirectoryItem('Verlauf', 'moviesHistory&url=trakthistory', 'movies.png', 'DefaultMovies.png', queue=True)
 
-		# Phase 1.8: Recommendations
-		self.addDirectoryItem("[B]Trakt[/B] - Empfehlungen", 'movies&url=trakt_recommendations', 'trakt.png', 'DefaultMovies.png')
+			# Umbrella Line 173: Watchlist (NO underscore: traktwatchlist!)
+			self.addDirectoryItem('Watchlist', 'movies&url=traktwatchlist', 'movies.png', 'DefaultMovies.png', queue=False)
+			# Umbrella Line 174: Collection (NO underscore: traktcollection!)
+			self.addDirectoryItem('Collection', 'movies&url=traktcollection', 'movies.png', 'DefaultMovies.png', queue=False)
+			# Umbrella Line 175: Liked Lists
+			self.addDirectoryItem('Gelikte Listen', 'movies_LikedLists', 'movies.png', 'DefaultMovies.png', queue=True)
 
-		# Phase 1.9: Liked Lists
-		self.addDirectoryItem("[B]Trakt[/B] - Gelikte Listen", 'movies&url=trakt_liked_lists', 'trakt.png', 'DefaultMovies.png')
-
-		# Library Integration
-		self.addDirectoryItem("[COLOR yellow]━━━ Bibliothek ━━━[/COLOR]", '', '', '', isFolder=False)
-		self.addDirectoryItem("[B]Bibliothek[/B] - Watchlist importieren", 'library_moviesToLibrary&url=https://api.trakt.tv/users/me/watchlist/movies&list_name=Trakt Watchlist', 'trakt.png', 'DefaultMovies.png', isFolder=False)
-		self.addDirectoryItem("[B]Bibliothek[/B] - Collection importieren", 'library_moviesToLibrary&url=https://api.trakt.tv/sync/collection/movies&list_name=Trakt Collection', 'trakt.png', 'DefaultMovies.png', isFolder=False)
+		# Umbrella Line 177: Normal movie navigation (ONLY "Filme" - redundant items removed!)
+		if not lite:
+			self.addDirectoryItem('Entdecken', 'movieNavigator', 'movies.png', 'DefaultMovies.png')
 
 		self._endDirectory()
 
-	def myTV(self):
-		"""Meine TV-Serien - Trakt Integration"""
+	def myTV(self, lite=False):
+		"""Meine TV-Serien - 1:1 Umbrella Implementation (Lines 255-296)"""
 		from resources.lib.modules import trakt
 
-		# Check if user is authenticated
+		# Umbrella Line 256: accountCheck
 		if not trakt.getTraktCredentialsInfo():
-			# Show notification and offer to authenticate
 			control.infoDialog('Bitte verbinde dich mit Trakt um diese Funktion zu nutzen', heading='Trakt', sound=True, icon='INFO')
-			# Add button to authenticate
 			self.addDirectoryItem("[COLOR skyblue][B]Trakt Konto verbinden[/B][/COLOR]", 'authTrakt', 'trakt.png', 'DefaultAddonProgram.png', isFolder=False)
 			self._endDirectory()
 			return
 
-		# User is authenticated - show all Trakt features
-		# Phase 1.6: Unfinished Content
-		self.addDirectoryItem("[B]Trakt[/B] - Angefangene Episoden", 'episodes&url=trakt_unfinished', 'trakt.png', 'DefaultInProgressShows.png')
+		# Umbrella Lines 275-290: TRAKT Section
+		traktCredentials = trakt.getTraktCredentialsInfo()
+		traktIndicators = trakt.getTraktIndicatorsInfo()
 
-		# Phase 1.7: Progress/Continue Watching (improved) - Directly playable episodes!
-		self.addDirectoryItem("[B]Trakt[/B] - Nächste Episoden", 'episodes&url=trakt_progress', 'trakt.png', 'DefaultInProgressShows.png')
-		self.addDirectoryItem("[B]Trakt[/B] - Continue Watching", 'tvshows&url=trakt_continue', 'trakt.png', 'DefaultTVShows.png')
+		if traktCredentials:
+			if traktIndicators:
+				# Umbrella Line 277: (35308 = "Finish Watching" → "Anschauen beenden")
+				self.addDirectoryItem('Angefangene Episoden', 'episodesUnfinished&url=traktunfinished', 'tvshows.png', 'DefaultInProgressShows.png', queue=True)
+				# Umbrella Line 278: (32037 = "Progress" → "Progress Episodes")
+				self.addDirectoryItem('Nächste Episoden', 'calendar&url=progress', 'tvshows.png', 'DefaultRecentlyAddedEpisodes.png', queue=True)
+				# Umbrella Line 279: (40401 = "Progress Shows")
+				self.addDirectoryItem('Serien-Fortschritt', 'shows_progress&url=progresstv', 'tvshows.png', 'DefaultTVShows.png', queue=True)
+				# Umbrella Line 280: (40433 = "Watched Shows")
+				self.addDirectoryItem('Gesehene Serien', 'shows_watched&url=watchedtv', 'tvshows.png', 'DefaultTVShows.png', queue=True)
+				# Umbrella Line 281: (32019 = "Upcoming Progress" → "Kommende Fortschritte")
+				self.addDirectoryItem('Noch nicht ausgestrahlt', 'upcomingProgress&url=progress', 'tvshows.png', 'DefaultTVShows.png', queue=True)
+				# Umbrella Line 282: (32202 = "Recent Episodes" → "Aktuelle Folgen")
+				self.addDirectoryItem('Kürzlich ausgestrahlt', 'calendar&url=mycalendarRecent', 'tvshows.png', 'DefaultRecentlyAddedEpisodes.png', queue=True)
+				# Umbrella Line 283: (32203 = "Upcoming Episodes" → "Kommende Folgen")
+				self.addDirectoryItem('Demnächst im TV', 'calendar&url=mycalendarUpcoming', 'tvshows.png', 'DefaultRecentlyAddedEpisodes.png', queue=True)
+				# Umbrella Line 284: (32204 = "Season Premieres" → "Saisonpremieren")
+				self.addDirectoryItem('Staffel-Premieren', 'calendar&url=mycalendarPremiers', 'tvshows.png', 'DefaultTVShows.png', queue=True)
+				# Umbrella Line 285: (32036 = "History" → "Verlauf")
+				self.addDirectoryItem('Verlauf', 'calendar&url=trakthistory', 'tvshows.png', 'DefaultTVShows.png', queue=True)
 
-		# Existing items
-		self.addDirectoryItem("[B]Trakt[/B] - Watchlist", 'tvshows&url=trakt_watchlist', 'trakt.png', 'DefaultTVShows.png')
-		self.addDirectoryItem("[B]Trakt[/B] - Collection", 'tvshows&url=trakt_collection', 'trakt.png', 'DefaultTVShows.png')
-		self.addDirectoryItem("[B]Trakt[/B] - History", 'tvshows&url=trakt_history', 'trakt.png', 'DefaultTVShows.png')
+			# Umbrella Line 288: (32683 = "Trakt Watchlist" → "Trakt-Watchlist")
+			self.addDirectoryItem('Watchlist', 'tvshows&url=traktwatchlist', 'tvshows.png', 'DefaultTVShows.png', queue=False)
+			# Umbrella Line 289: (32032 = "Collection" → "Sammlung")
+			self.addDirectoryItem('Collection', 'tvshows&url=traktcollection', 'tvshows.png', 'DefaultTVShows.png', queue=False)
+			# Umbrella Line 290: "My Liked Lists" → "Gelikte Listen"
+			self.addDirectoryItem('Gelikte Listen', 'shows_LikedLists', 'tvshows.png', 'DefaultTVShows.png', queue=True)
 
-		# Phase 1.8: Recommendations
-		self.addDirectoryItem("[B]Trakt[/B] - Empfehlungen", 'tvshows&url=trakt_recommendations', 'trakt.png', 'DefaultTVShows.png')
-
-		# Phase 1.9: Liked Lists
-		self.addDirectoryItem("[B]Trakt[/B] - Gelikte Listen", 'tvshows&url=trakt_liked_lists', 'trakt.png', 'DefaultTVShows.png')
-
-		# Library Integration
-		self.addDirectoryItem("[COLOR yellow]━━━ Bibliothek ━━━[/COLOR]", '', '', '', isFolder=False)
-		self.addDirectoryItem("[B]Bibliothek[/B] - Watchlist importieren", 'library_tvshowsToLibrary&url=https://api.trakt.tv/users/me/watchlist/shows&list_name=Trakt Watchlist', 'trakt.png', 'DefaultTVShows.png', isFolder=False)
-		self.addDirectoryItem("[B]Bibliothek[/B] - Collection importieren", 'library_tvshowsToLibrary&url=https://api.trakt.tv/sync/collection/shows&list_name=Trakt Collection', 'trakt.png', 'DefaultTVShows.png', isFolder=False)
+		# Umbrella Line 293: "Discover" → "Entdecken" (only this one!)
+		if not lite:
+			self.addDirectoryItem('Entdecken', 'tvNavigator', 'tvshows.png', 'DefaultTVShows.png')
 
 		self._endDirectory()
 
@@ -256,6 +266,7 @@ class navigator:
 		thumb = self.getMedia(thumb, icon)
 		#laut kodi doku - ListItem([label, label2, path, offscreen])
 		listitem = control.item(name, offscreen=True) # Removed iconImage and thumbnailImage
+		# Set both thumb (small icon) and icon (fallback) to the same value for consistency
 		listitem.setArt({'poster': thumb, 'icon': icon})
 		if not context == None:
 			cm = []

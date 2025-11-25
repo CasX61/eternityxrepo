@@ -167,7 +167,29 @@ class player(xbmc.Player):
                 self.currentTime = self.getTime()
                 watcher = (self.currentTime / self.totalTime >= .9)
                 if watcher and not self.watcher_control:
+                    # Update local database
                     playcountDB.updatePlaycount(self.mediatype, self.title, self.name, self.imdb, self.number_of_seasons, self.season, self.number_of_episodes, self.episode, 1)
+
+                    # CRITICAL: Also mark as watched on Trakt (Umbrella playcount.py Line 223-242)
+                    # This ensures Trakt History is updated and sync works correctly!
+                    try:
+                        from resources.lib.modules import trakt
+                        if control.getSetting('trakt.scrobble') == 'true' and trakt.getTraktCredentialsInfo():
+                            if self.mediatype == 'movie' and self.imdb:
+                                # Mark movie as watched on Trakt
+                                xbmc.log('[Eternity-Player] Marking movie as watched on Trakt: imdb=%s' % self.imdb, xbmc.LOGDEBUG)
+                                trakt.markMovieAsWatched(self.imdb)
+                            elif self.mediatype in ('episode', 'tvshow') and self.tvdb and self.season and self.episode:
+                                # Mark episode as watched on Trakt
+                                xbmc.log('[Eternity-Player] Marking episode as watched on Trakt: tvdb=%s S%02dE%02d' % (self.tvdb, int(self.season), int(self.episode)), xbmc.LOGDEBUG)
+                                trakt.markEpisodeAsWatched(self.imdb, self.tvdb, self.season, self.episode)
+
+                            # Invalidate cache to update indicators (Umbrella playcount.py Line 228, 249)
+                            trakt.sync_watched(forced=True)
+                            xbmc.log('[Eternity-Player] Trakt mark as watched complete, cache invalidated', xbmc.LOGDEBUG)
+                    except Exception as e:
+                        xbmc.log('[Eternity-Player] Error marking as watched on Trakt: %s' % str(e), xbmc.LOGERROR)
+
                     #control.setSetting(id='watcher.control', value='true')
                     self.watcher_control = True
             monitor.waitForAbort(3)

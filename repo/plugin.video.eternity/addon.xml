@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.eternity" version="1.0.0" name="[B]Eternity[/B]" provider-name="CasX">
+<addon id="plugin.video.eternity" version="1.0.1" name="[B]Eternity[/B]" provider-name="CasX">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests"/>
@@ -31,6 +31,13 @@
     <extension point="xbmc.addon.metadata">
         <summary lang="de_DE">Eternity: Streaming bis in die Ewigkeit</summary>
         <summary lang="en_GB">Eternity: Streaming till Eternity</summary>
+        <news>
+[B]v1.0.1 - 25.11.2025[/B]
+===================
+
+-- FIX Trakt Funktionen
+-- FIX Gesehen/Ungesehen Status
+        </news>
         <assets>
 			<icon>resources/icon.png</icon>
 			<fanart>resources/fanart.jpg</fanart>

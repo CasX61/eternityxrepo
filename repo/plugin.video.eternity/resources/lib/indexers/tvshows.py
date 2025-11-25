@@ -34,6 +34,20 @@ class tvshows:
 		try:
 			# Check if this is a Trakt URL
 			url = params.get('url')
+
+			# UMBRELLA-STYLE URL HANDLING (without underscore):
+			# Convert 'traktwatchlist' → call getTraktShows with 'trakt_watchlist'
+			# Convert 'traktcollection' → call getTraktShows with 'trakt_collection'
+			if url in ['traktwatchlist', 'traktcollection']:
+				# Convert to underscore format for getTraktShows
+				converted_url = 'trakt_watchlist' if url == 'traktwatchlist' else 'trakt_collection'
+				self.getTraktShows(converted_url, None, None)
+				if self.list == None or len(self.list) == 0:
+					return control.infoDialog("Nichts gefunden", time=2000)
+				self.getDirectory(params)
+				return
+
+			# Standard Trakt URLs with underscore (from getTraktShows)
 			if url and url.startswith('trakt_'):
 				list_id = params.get('list_id')
 				list_owner = params.get('list_owner')
@@ -84,6 +98,10 @@ class tvshows:
 			# Skip worker if we already have full metadata from Kodi API
 			if not self.search_direct:
 				self.worker()
+
+			# UMBRELLA: Always sort TV shows after worker() (Line 209)
+			# Note: TV shows don't have history exception like movies
+			self.sort()
 
 			if self.list == None or len(self.list) == 0:	#nichts gefunden
 				return control.infoDialog("Nichts gefunden", time=2000)
@@ -508,6 +526,62 @@ class tvshows:
 		self.list = [i for i in self.meta] # falls noch eine Filterfunktion kommt
 		self.list = [i for i in self.list if not i['plot'].strip() == '' and not i['poster'] == control.addonPoster()]  # - Filter
 
+	def sort(self, type='shows'):
+		"""
+		Umbrella sort() - Lines 493-532
+		Sorts TV show list based on user settings
+		Special handling: type='progress' automatically sorts by lastplayed (newest first)
+		Attributes:
+		  0 = Default (no sort, or for progress: lastplayed desc)
+		  1 = Alphabetically (Title)
+		  2 = Rating
+		  3 = Votes
+		  4 = Premiered (First Aired)
+		  5 = Added (When added to list)
+		  6 = Lastplayed (Last watched)
+		"""
+		try:
+			if not self.meta: return
+			import re
+			import time
+			# For now, use simple alphabetical sort (attribute=1, reverse=False)
+			# EXCEPT for progress which uses lastplayed desc
+			attribute = 1  # Alphabetical
+			reverse = False
+
+			# Special handling for progress shows (Umbrella Lines 498-501)
+			if type == 'progress':
+				reverse = True
+				attribute = 6  # lastplayed
+
+			if attribute == 1:
+				try:
+					self.meta = sorted(self.meta, key=lambda k: re.sub(r'(^the |^a |^an )', '', k.get('tvshowtitle', k.get('title', '')).lower()), reverse=reverse)
+				except:
+					self.meta = sorted(self.meta, key=lambda k: re.sub(r'(^the |^a |^an )', '', k.get('title', '').lower()), reverse=reverse)
+			elif attribute == 2:
+				self.meta = sorted(self.meta, key=lambda k: float(k.get('rating', 0)), reverse=reverse)
+			elif attribute == 3:
+				self.meta = sorted(self.meta, key=lambda k: int(str(k.get('votes', '0')).replace(',', '')), reverse=reverse)
+			elif attribute == 4:
+				for i in range(len(self.meta)):
+					if 'premiered' not in self.meta[i]: self.meta[i]['premiered'] = ''
+				self.meta = sorted(self.meta, key=lambda k: k['premiered'], reverse=reverse)
+			elif attribute == 5:
+				for i in range(len(self.meta)):
+					if 'added' not in self.meta[i]: self.meta[i]['added'] = ''
+				self.meta = sorted(self.meta, key=lambda k: k['added'], reverse=reverse)
+			elif attribute == 6:
+				# Umbrella Line 527: Sort by lastplayed with time.strptime()
+				for i in range(len(self.meta)):
+					if 'lastplayed' not in self.meta[i]:
+						self.meta[i]['lastplayed'] = ''
+				if self.meta:
+					self.meta = sorted(self.meta, key=lambda k: time.strptime(k['lastplayed'], "%Y-%m-%dT%H:%M:%S.%fZ") if k.get('lastplayed') else None, reverse=reverse)
+			elif reverse:
+				self.meta = list(reversed(self.meta))
+		except:
+			log_utils.error()
 
 	def super_meta(self, id):
 		try:
@@ -524,10 +598,12 @@ class tvshows:
 					meta.update({'poster': poster})
 
 			try:
-				playcount = playcountDB.getPlaycount('tvshow', 'title', meta['title'], None, None)
-				playcount = playcount if playcount else 0
-				overlay = 7 if playcount > 0 else 6
-				meta.update({'playcount': playcount, 'overlay': overlay})
+				# Use new indicator system (Trakt or local database)
+				from resources.lib.modules import playcount as playcountModule
+				indicators = playcountModule.getTVShowIndicators(refresh=False)
+				overlay = playcountModule.getTVShowOverlay(indicators, meta.get('imdb_id', ''), meta.get('tvdb_id', ''))
+				playcount = 1 if overlay == '7' else 0
+				meta.update({'playcount': playcount, 'overlay': int(overlay)})
 			except:
 				pass
 			self.meta.append(meta)

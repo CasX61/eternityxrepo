@@ -5,6 +5,7 @@
 
 import sys
 import datetime, time, json
+import xbmc
 from concurrent.futures import ThreadPoolExecutor
 from resources.lib.tmdb_old import cTMDB
 from resources.lib.tmdb_kodi import TMDBApi
@@ -38,6 +39,15 @@ class movies:
 		try:
 			# Check if this is a Trakt URL
 			url = params.get('url')
+
+			# URL CONVERSION: Umbrella format (no underscore) → Eternity format (with underscore)
+			# navigator.py sends: "traktwatchlist", "traktcollection" (NO underscore)
+			# getTraktMovies expects: "trakt_watchlist", "trakt_collection" (WITH underscore)
+			if url in ['traktwatchlist', 'traktcollection', 'trakthistory', 'traktunfinished']:
+				# Add underscore: traktwatchlist → trakt_watchlist
+				url = url.replace('trakt', 'trakt_', 1)
+				xbmc.log('[Eternity-Movies] URL converted: %s → %s' % (params.get('url'), url), xbmc.LOGDEBUG)
+
 			if url and url.startswith('trakt_'):
 				list_id = params.get('list_id')
 				list_owner = params.get('list_owner')
@@ -71,7 +81,9 @@ class movies:
 			if self.list == None or len(self.list) == 0:  # nichts gefunden
 				return control.infoDialog("Nichts gefunden", time=2000)
 
-			self.search_direct = True
+			# BUGFIX: Force worker() to run so super_meta() sets playcount from Trakt!
+			# TV shows do this too (tvshows.py:86)
+			self.search_direct = False
 			self.getDirectory(params)
 			searchDB.save_query(params.get('query'), params.get('action'))
 		except:
@@ -86,6 +98,12 @@ class movies:
 			# Skip worker if we already have full metadata from Kodi API
 			if not self.search_direct:
 				self.worker()
+
+			# UMBRELLA: Sort after worker(), but NOT for history
+			# Check if this is NOT a history URL (Umbrella Line 236)
+			url = params.get('url', '')
+			if url and 'history' not in url:
+				self.sort()
 
 			if self.list == None or len(self.list) == 0:	#nichts gefunden
 				return control.infoDialog("Nichts gefunden", time=2000)
@@ -162,6 +180,53 @@ class movies:
 		except:
 			log_utils.error()
 
+	def sort(self, type='movies'):
+		"""
+		Umbrella sort() - Lines 722-750
+		Sorts movie list based on user settings
+		Attributes:
+		  0 = Default (no sort, or Trakt order)
+		  1 = Alphabetically (Title)
+		  2 = Rating
+		  3 = Votes
+		  4 = Premiered (Release Date)
+		  5 = Added (When added to list)
+		  6 = Lastplayed (Last watched)
+		"""
+		try:
+			if not self.meta: return
+			import re
+			# For now, use simple alphabetical sort (attribute=1, reverse=False)
+			# Later we can add settings support like Umbrella
+			attribute = 1  # Alphabetical
+			reverse = False
+
+			if attribute == 1:
+				try:
+					self.meta = sorted(self.meta, key=lambda k: re.sub(r'(^the |^a |^an )', '', k['title'].lower()), reverse=reverse)
+				except:
+					self.meta = sorted(self.meta, key=lambda k: k['title'].lower(), reverse=reverse)
+			elif attribute == 2:
+				self.meta = sorted(self.meta, key=lambda k: float(k.get('rating', 0)), reverse=reverse)
+			elif attribute == 3:
+				self.meta = sorted(self.meta, key=lambda k: int(str(k.get('votes', '0')).replace(',', '')), reverse=reverse)
+			elif attribute == 4:
+				for i in range(len(self.meta)):
+					if 'premiered' not in self.meta[i]: self.meta[i]['premiered'] = ''
+				self.meta = sorted(self.meta, key=lambda k: k['premiered'], reverse=reverse)
+			elif attribute == 5:
+				for i in range(len(self.meta)):
+					if 'added' not in self.meta[i]: self.meta[i]['added'] = ''
+				self.meta = sorted(self.meta, key=lambda k: k['added'], reverse=reverse)
+			elif attribute == 6:
+				for i in range(len(self.meta)):
+					if 'lastplayed' not in self.meta[i]: self.meta[i]['lastplayed'] = ''
+				self.meta = sorted(self.meta, key=lambda k: k['lastplayed'], reverse=reverse)
+			elif reverse:
+				self.meta = list(reversed(self.meta))
+		except:
+			log_utils.error()
+
 	def super_meta(self, id, **kwargs):
 		try:
 			# Extract tmdb_id if we received a dict from new Kodi API
@@ -173,9 +238,12 @@ class movies:
 			# TODO different search providers
 			meta = cTMDB().get_meta('movie', '', '', tmdb_id, advanced='true')
 			try:
-				playcount = playcountDB.getPlaycount('movie', 'imdb_id', meta['imdb_id']) # mediatype, column_names, column_value, season=0, episode=0
-				playcount = playcount if playcount else 0
-				meta.update({'playcount': playcount})
+				# Use new indicator system (Trakt or local database)
+				from resources.lib.modules import playcount as playcountModule
+				indicators = playcountModule.getMovieIndicators(refresh=False)
+				overlay = playcountModule.getMovieOverlay(indicators, meta['imdb_id'])
+				playcount = 1 if overlay == '7' else 0
+				meta.update({'playcount': playcount, 'overlay': int(overlay)})
 			except:
 				pass
 			if not 'poster' in meta or meta['poster'] == '':
@@ -374,6 +442,10 @@ class movies:
 		from resources.lib.modules import trakt
 		traktCredentials = trakt.getTraktCredentialsInfo()
 
+		# UMBRELLA APPROACH: Get watched indicators ONCE for all items (Line 2084)
+		from resources.lib.modules import playcount as playcountModule
+		indicators = playcountModule.getMovieIndicators(refresh=False)
+
 		watchedMenu = "In %s [I]Gesehen[/I]" % control.addonName
 		unwatchedMenu = "In %s [I]Ungesehen[/I]" % control.addonName
 		traktManagerMenu = "[B]Trakt-Manager[/B]"
@@ -413,8 +485,22 @@ class movies:
 
 				cm = []
 				try:
-					playcount = i['playcount'] if 'playcount' in i else 0
-					if playcount == 1:
+					# UMBRELLA APPROACH: Check watched status from indicators (Line 2195-2208)
+					# Get IMDB ID for this movie
+					imdb_id = i.get('imdb', '') or i.get('imdb_id', '')
+					if imdb_id and not imdb_id.startswith('tt'):
+						imdb_id = 'tt' + imdb_id
+
+					# Check if movie is watched using indicators
+					# Umbrella uses overlay '5' for watched, '4' for unwatched
+					# Eternity uses overlay '7' for watched, '6' for unwatched
+					watched = False
+					if imdb_id:
+						overlay = playcountModule.getMovieOverlay(indicators, imdb_id)
+						watched = (overlay == '7')
+
+					# Set playcount and context menu based on watched status
+					if watched:
 						cm.append((unwatchedMenu, 'RunPlugin(%s?action=UpdatePlayCount&meta=%s&playCount=0)' % (sysaddon, _sysmeta)))
 						meta.update({'playcount': 1, 'overlay': 7})
 					else:
@@ -426,10 +512,14 @@ class movies:
 				# Add Trakt Manager if user is authenticated
 				if traktCredentials:
 					try:
-						# Get IMDB ID for Trakt
-						imdb_id = i.get('imdb', '') or i.get('imdb_id', '')
-						if imdb_id and not imdb_id.startswith('tt'):
-							imdb_id = 'tt' + imdb_id
+						# IMDB ID was already extracted above for watched status check
+						# Reuse it if available, otherwise extract it
+						try:
+							test_var = imdb_id
+						except NameError:
+							imdb_id = i.get('imdb', '') or i.get('imdb_id', '')
+							if imdb_id and not imdb_id.startswith('tt'):
+								imdb_id = 'tt' + imdb_id
 
 						if imdb_id:
 							cm.append((traktManagerMenu, 'RunPlugin(%s?action=traktManager&name=%s&imdb=%s&content=movie)' % (

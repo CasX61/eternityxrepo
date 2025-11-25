@@ -1,0 +1,7 @@
+[B]v1.0.1 - 25.11.2025[/B]
+===================
+
+-- FIX Trakt Funktionen
+-- FIX Gesehen/Ungesehen Status
+
+

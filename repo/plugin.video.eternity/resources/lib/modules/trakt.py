@@ -526,6 +526,11 @@ def watch(content_type, name, imdb=None, tvdb=None, season=None, episode=None, r
 		success = False
 
 	control.hide()
+
+	# CRITICAL: Invalidate cache after marking as watched (Umbrella playcount.py Line 438)
+	if success:
+		sync_watched(forced=True)  # Force sync to update indicators
+
 	if refresh: control.refresh()
 	control.trigger_widget_refresh()  # Umbrella compatibility - refresh widgets
 
@@ -561,6 +566,11 @@ def unwatch(content_type, name, imdb=None, tvdb=None, season=None, episode=None,
 		success = False
 
 	control.hide()
+
+	# CRITICAL: Invalidate cache after marking as unwatched (Umbrella playcount.py Line 447)
+	if success:
+		sync_watched(forced=True)  # Force sync to update indicators
+
 	if refresh: control.refresh()
 	control.trigger_widget_refresh()  # Umbrella compatibility - refresh widgets
 
@@ -984,7 +994,11 @@ def scrobbleReset(imdb=None, tmdb='', tvdb=None, season=None, episode=None):
 # =============================
 
 def scrobbleMovie(imdb, tmdb, watched_percent):
-	"""Scrobble movie playback progress - Based on Umbrella"""
+	"""
+	Scrobble movie playback progress
+	Based on Umbrella's scrobbleMovie() (Line 1440-1452)
+	CRITICAL: Must call sync_playbackProgress() after scrobbling!
+	"""
 	import xbmc
 	xbmc.log('[Eternity-Trakt] scrobbleMovie: imdb=%s, progress=%.1f%%' % (imdb, watched_percent), xbmc.LOGDEBUG)
 	try:
@@ -992,6 +1006,12 @@ def scrobbleMovie(imdb, tmdb, watched_percent):
 		success = getTrakt('/scrobble/pause', {"movie": {"ids": {"imdb": imdb}}, "progress": watched_percent})
 		if success:
 			xbmc.log('[Eternity-Trakt] Scrobble Movie Success: imdb=%s' % imdb, xbmc.LOGDEBUG)
+
+			# CRITICAL: Sync playback progress after scrobbling (Umbrella Line 1449-1451)
+			control.sleep(1000)  # Wait 1 second for Trakt to process
+			sync_playbackProgress(forced=True)  # Force sync to update cache
+			control.trigger_widget_refresh()  # Refresh widgets
+
 			if getSetting('trakt.scrobble.notify') == 'true':
 				control.infoDialog('Progress Saved (%.0f%%)' % watched_percent, heading='Trakt')
 			return True
@@ -1005,7 +1025,11 @@ def scrobbleMovie(imdb, tmdb, watched_percent):
 		return False
 
 def scrobbleEpisode(imdb, tmdb, tvdb, season, episode, watched_percent):
-	"""Scrobble episode playback progress - Based on Umbrella"""
+	"""
+	Scrobble episode playback progress
+	Based on Umbrella's scrobbleEpisode() (Line 1454-1466)
+	CRITICAL: Must call sync_playbackProgress() after scrobbling!
+	"""
 	import xbmc
 	xbmc.log('[Eternity-Trakt] scrobbleEpisode: tvdb=%s, S%02dE%02d, progress=%.1f%%' % (tvdb, int(season), int(episode), watched_percent), xbmc.LOGDEBUG)
 	try:
@@ -1013,6 +1037,12 @@ def scrobbleEpisode(imdb, tmdb, tvdb, season, episode, watched_percent):
 		success = getTrakt('/scrobble/pause', {"show": {"ids": {"tvdb": tvdb}}, "episode": {"season": season, "number": episode}, "progress": watched_percent})
 		if success:
 			xbmc.log('[Eternity-Trakt] Scrobble Episode Success: tvdb=%s S%02dE%02d' % (tvdb, season, episode), xbmc.LOGDEBUG)
+
+			# CRITICAL: Sync playback progress after scrobbling (Umbrella Line 1463-1465)
+			control.sleep(1000)  # Wait 1 second for Trakt to process
+			sync_playbackProgress(forced=True)  # Force sync to update cache
+			control.trigger_widget_refresh()  # Refresh widgets
+
 			if getSetting('trakt.scrobble.notify') == 'true':
 				control.infoDialog('Progress Saved S%02dE%02d (%.0f%%)' % (season, episode, watched_percent), heading='Trakt')
 			return True
@@ -1041,6 +1071,10 @@ def lists(id=None):
 			return getTraktAsJson('/users/me/lists' + ('' if not id else ('/' + str(id))))
 	except:
 		return getTraktAsJson('/users/me/lists' + ('' if not id else ('/' + str(id))))
+
+def getUserLists():
+	"""Alias for lists() - for compatibility with movies.py/tvshows.py"""
+	return lists()
 
 def list(id):
 	"""Get specific list"""
@@ -1374,23 +1408,36 @@ def getProgressWatching():
 	FULL UMBRELLA IMPLEMENTATION - Calculates next episode with TMDB metadata
 	Based on Umbrella's episodes.trakt_progress_list()
 	"""
+	import xbmc
+	xbmc.log('[Eternity-Trakt] getProgressWatching: START', xbmc.LOGINFO)
 	try:
 		from resources.lib.tmdb_kodi import TMDBApi
 		from concurrent.futures import ThreadPoolExecutor
 		import datetime
 
 		# Get watched shows from Trakt
+		xbmc.log('[Eternity-Trakt] getProgressWatching: Fetching watched shows from Trakt', xbmc.LOGDEBUG)
 		items = getTraktAsJson('/users/me/watched/shows?extended=full')
-		if not items: return None
+		xbmc.log('[Eternity-Trakt] getProgressWatching: Fetched %d watched shows' % (len(items) if items else 0), xbmc.LOGINFO)
+
+		if not items:
+			xbmc.log('[Eternity-Trakt] getProgressWatching: NO watched shows from Trakt!', xbmc.LOGWARNING)
+			return None
 
 		progress_items = []
 		tmdb_api = TMDBApi(language='de')
 		today_date = datetime.datetime.now().strftime('%Y-%m-%d')
 
+		skipped_ended = 0
+		skipped_no_tmdb = 0
+		skipped_no_seasons = 0
+		skipped_no_episodes = 0
+
 		# Phase 1: Extract basic show info and calculate last watched episode
 		for item in items:
 			try:
 				show = item.get('show', {})
+				show_title = show.get('title', 'Unknown')
 
 				# Check if show is fully watched (ended shows only)
 				if show.get('status', '').lower() == 'ended':
@@ -1400,11 +1447,16 @@ def getProgressWatching():
 							watched_count += len(season.get('episodes', []))
 					aired_episodes = show.get('aired_episodes', 0)
 					if watched_count >= aired_episodes:
+						skipped_ended += 1
+						xbmc.log('[Eternity-Trakt] Skipping fully watched ended show: %s (watched %d/%d)' % (show_title, watched_count, aired_episodes), xbmc.LOGDEBUG)
 						continue  # Skip fully watched ended shows
 
 				# Sort seasons to handle Trakt's inconsistent ordering
 				seasons = sorted(item.get('seasons', []), key=lambda k: k.get('number', 0), reverse=False)
-				if not seasons: continue
+				if not seasons:
+					skipped_no_seasons += 1
+					xbmc.log('[Eternity-Trakt] Skipping show without seasons: %s' % show_title, xbmc.LOGDEBUG)
+					continue
 
 				# Get last watched season and episode
 				last_season = seasons[-1]
@@ -1412,7 +1464,10 @@ def getProgressWatching():
 
 				episodes = [x for x in last_season.get('episodes', []) if 'number' in x]
 				episodes = sorted(episodes, key=lambda x: x.get('number', 0))
-				if not episodes: continue
+				if not episodes:
+					skipped_no_episodes += 1
+					xbmc.log('[Eternity-Trakt] Skipping show without episodes: %s' % show_title, xbmc.LOGDEBUG)
+					continue
 
 				last_episode_num = episodes[-1].get('number', 0)
 
@@ -1423,7 +1478,11 @@ def getProgressWatching():
 				tvdb = str(ids.get('tvdb', '')) if ids.get('tvdb') else ''
 
 				if not tmdb:
+					skipped_no_tmdb += 1
+					xbmc.log('[Eternity-Trakt] Skipping show without TMDB ID: %s' % show_title, xbmc.LOGDEBUG)
 					continue  # Need TMDB ID for metadata
+
+				xbmc.log('[Eternity-Trakt] Processing show: %s (Last watched: S%02dE%02d, TMDB: %s)' % (show_title, last_season_num, last_episode_num, tmdb), xbmc.LOGDEBUG)
 
 				progress_items.append({
 					'tvshowtitle': show.get('title', ''),
@@ -1526,15 +1585,31 @@ def getProgressWatching():
 				return None
 
 		# Process all shows with ThreadPoolExecutor
+		xbmc.log('[Eternity-Trakt] getProgressWatching: Processing %d shows with ThreadPoolExecutor' % len(progress_items), xbmc.LOGINFO)
 		final_list = []
 		with ThreadPoolExecutor(max_workers=10) as executor:
 			results = executor.map(process_show, progress_items)
 			final_list = [r for r in results if r is not None]
 
+		# Log summary
+		xbmc.log('[Eternity-Trakt] getProgressWatching: SUMMARY:', xbmc.LOGINFO)
+		xbmc.log('[Eternity-Trakt]   - Total watched shows from Trakt: %d' % (len(items) if items else 0), xbmc.LOGINFO)
+		xbmc.log('[Eternity-Trakt]   - Skipped (fully watched ended): %d' % skipped_ended, xbmc.LOGINFO)
+		xbmc.log('[Eternity-Trakt]   - Skipped (no TMDB ID): %d' % skipped_no_tmdb, xbmc.LOGINFO)
+		xbmc.log('[Eternity-Trakt]   - Skipped (no seasons): %d' % skipped_no_seasons, xbmc.LOGINFO)
+		xbmc.log('[Eternity-Trakt]   - Skipped (no episodes): %d' % skipped_no_episodes, xbmc.LOGINFO)
+		xbmc.log('[Eternity-Trakt]   - Shows sent to processing: %d' % len(progress_items), xbmc.LOGINFO)
+		xbmc.log('[Eternity-Trakt]   - Final next episodes returned: %d' % len(final_list), xbmc.LOGINFO)
+
+		if not final_list:
+			xbmc.log('[Eternity-Trakt] getProgressWatching: EMPTY RESULT - Check if all shows are fully watched or missing TMDB IDs', xbmc.LOGWARNING)
+
 		return final_list if final_list else None
 
 	except Exception as e:
-		control.log('TRAKT: getProgressWatching Error: %s' % str(e))
+		xbmc.log('[Eternity-Trakt] getProgressWatching EXCEPTION: %s' % str(e), xbmc.LOGERROR)
+		import traceback
+		xbmc.log('[Eternity-Trakt] Traceback: %s' % traceback.format_exc(), xbmc.LOGERROR)
 		return None
 
 # =============================
@@ -1844,3 +1919,221 @@ def getListActivity(activities=None):
 		return activity
 	except:
 		return 0
+
+# =============================
+# PLAYBACK PROGRESS SYNC (CRITICAL!)
+# =============================
+
+def sync_playbackProgress(activities=None, forced=False):
+	"""
+	Sync playback progress from Trakt to local cache
+	Based on Umbrella's sync_playbackProgress() (Line 1602-1616)
+
+	This function is CRITICAL for scrobbling to work correctly!
+	Must be called after every scrobble operation.
+
+	:param activities: Activity dict (optional, from getActivity())
+	:param forced: Force sync regardless of activity timestamp
+	"""
+	import xbmc
+	try:
+		from resources.lib.modules import cache
+
+		link = '/sync/playback/?extended=full'
+
+		if forced:
+			# Force fetch (called after scrobbling)
+			xbmc.log('[Eternity-Trakt] sync_playbackProgress: FORCED SYNC', xbmc.LOGDEBUG)
+			items = getTraktAsJson(link, silent=True)
+			if items:
+				# Cache playback items for 1 hour
+				cache.set_simple('trakt_playback_items', items)
+				cache.set_simple('trakt_last_paused_at', int(time.time()))
+				xbmc.log('[Eternity-Trakt] sync_playbackProgress: Cached %d playback items' % len(items), xbmc.LOGINFO)
+		else:
+			# Smart sync (only if activity changed)
+			db_last_paused = cache.get_simple('trakt_last_paused_at', 0)
+			activity = getPausedActivity(activities)
+
+			xbmc.log('[Eternity-Trakt] sync_playbackProgress: db_last_paused=%d, activity=%d, diff=%d' % (db_last_paused, activity, activity - db_last_paused), xbmc.LOGDEBUG)
+
+			# Only sync if > 2 minutes difference
+			if activity - db_last_paused >= 120:
+				xbmc.log('[Eternity-Trakt] sync_playbackProgress: SMART SYNC (activity changed)', xbmc.LOGDEBUG)
+				items = getTraktAsJson(link, silent=True)
+				if items:
+					cache.set_simple('trakt_playback_items', items)
+					cache.set_simple('trakt_last_paused_at', activity)
+					xbmc.log('[Eternity-Trakt] sync_playbackProgress: Cached %d playback items' % len(items), xbmc.LOGINFO)
+			else:
+				xbmc.log('[Eternity-Trakt] sync_playbackProgress: Skipping sync (no activity change)', xbmc.LOGDEBUG)
+	except Exception as e:
+		xbmc.log('[Eternity-Trakt] sync_playbackProgress Error: %s' % str(e), xbmc.LOGERROR)
+		import traceback
+		xbmc.log('[Eternity-Trakt] Traceback: %s' % traceback.format_exc(), xbmc.LOGERROR)
+
+
+def sync_watched(activities=None, forced=False):
+	"""
+	Sync watched movies and shows from Trakt
+	Based on Umbrella's sync_watched() (Line 1635-1652)
+
+	:param activities: Activity dict (optional)
+	:param forced: Force sync regardless of activity timestamp
+	"""
+	import xbmc
+	try:
+		if forced:
+			xbmc.log('[Eternity-Trakt] sync_watched: FORCED SYNC - Clearing movie and show caches', xbmc.LOGINFO)
+			# Clear cached indicators to force fresh fetch
+			from resources.lib.modules import cache
+			cache.remove(syncMovies)
+			cache.remove(syncTVShows)
+			# Fetch fresh data
+			cachesyncMovies(timeout=0)
+			cachesyncTVShows(timeout=0)
+		else:
+			# Smart sync based on activity
+			movies_activity = getWatchedActivity(activities)
+			shows_activity = getWatchedActivity(activities)
+
+			# Check if we need to sync (activity changed)
+			from resources.lib.modules import cache
+			last_movies_sync = cache.get_simple('trakt_last_movies_watched', 0)
+			last_shows_sync = cache.get_simple('trakt_last_shows_watched', 0)
+
+			if movies_activity - last_movies_sync >= 120:
+				xbmc.log('[Eternity-Trakt] sync_watched: Syncing movies (activity changed)', xbmc.LOGDEBUG)
+				cache.remove(syncMovies)
+				cachesyncMovies(timeout=0)
+				cache.set_simple('trakt_last_movies_watched', movies_activity)
+
+			if shows_activity - last_shows_sync >= 120:
+				xbmc.log('[Eternity-Trakt] sync_watched: Syncing shows (activity changed)', xbmc.LOGDEBUG)
+				cache.remove(syncTVShows)
+				cachesyncTVShows(timeout=0)
+				cache.set_simple('trakt_last_shows_watched', shows_activity)
+	except Exception as e:
+		xbmc.log('[Eternity-Trakt] sync_watched Error: %s' % str(e), xbmc.LOGERROR)
+
+
+# =============================
+# CACHE SYNC FUNCTIONS (for Playcount Module)
+# =============================
+
+def cachesyncMovies(timeout=0):
+	"""
+	Cache wrapper for syncMovies()
+	Returns list of watched movie IMDB IDs
+	timeout: Cache timeout in hours (0 = no cache, force fetch)
+	"""
+	try:
+		from resources.lib.modules import cache
+		indicators = cache.get(syncMovies, timeout)
+		return indicators
+	except:
+		import xbmc
+		xbmc.log('[Eternity-Trakt] cachesyncMovies Error', xbmc.LOGERROR)
+		return []
+
+def syncMovies():
+	"""
+	Fetch watched movies from Trakt
+	Returns: List of IMDB IDs ['tt1234567', 'tt2345678', ...]
+	"""
+	import xbmc
+	xbmc.log('[Eternity-Trakt] syncMovies: Fetching watched movies from Trakt', xbmc.LOGDEBUG)
+	try:
+		if not getTraktCredentialsInfo():
+			xbmc.log('[Eternity-Trakt] syncMovies: Not authenticated', xbmc.LOGWARNING)
+			return []
+
+		items = getTraktAsJson('/users/me/watched/movies')
+		if not items:
+			xbmc.log('[Eternity-Trakt] syncMovies: No watched movies found', xbmc.LOGDEBUG)
+			return []
+
+		# Extract IMDB IDs
+		indicators = [i['movie']['ids'] for i in items]
+		indicators = [str(i['imdb']) for i in indicators if 'imdb' in i and i['imdb']]
+
+		xbmc.log('[Eternity-Trakt] syncMovies: Fetched %d watched movies' % len(indicators), xbmc.LOGINFO)
+		return indicators
+	except Exception as e:
+		xbmc.log('[Eternity-Trakt] syncMovies Error: %s' % str(e), xbmc.LOGERROR)
+		return []
+
+def cachesyncTVShows(timeout=0):
+	"""
+	Cache wrapper for syncTVShows()
+	Returns list of watched show data
+	timeout: Cache timeout in hours (0 = no cache, force fetch)
+	"""
+	try:
+		from resources.lib.modules import cache
+		indicators = cache.get(syncTVShows, timeout)
+		return indicators
+	except:
+		import xbmc
+		xbmc.log('[Eternity-Trakt] cachesyncTVShows Error', xbmc.LOGERROR)
+		return []
+
+def syncTVShows():
+	"""
+	Fetch watched TV shows from Trakt with full episode data
+	Returns: List of tuples:
+	[(
+		{'imdb': 'tt123', 'tvdb': '456', 'tmdb': '789', 'trakt': '999'},  # IDs dict
+		16,  # Total aired episodes
+		[(1, 1), (1, 2), (1, 3), ...]  # List of watched (season, episode) tuples
+	), ...]
+	"""
+	import xbmc
+	xbmc.log('[Eternity-Trakt] syncTVShows: Fetching watched shows from Trakt', xbmc.LOGDEBUG)
+	try:
+		if not getTraktCredentialsInfo():
+			xbmc.log('[Eternity-Trakt] syncTVShows: Not authenticated', xbmc.LOGWARNING)
+			return []
+
+		items = getTraktAsJson('/users/me/watched/shows?extended=full')
+		if not items:
+			xbmc.log('[Eternity-Trakt] syncTVShows: No watched shows found', xbmc.LOGDEBUG)
+			return []
+
+		# Format: (ids_dict, aired_episodes, watched_episodes_list)
+		indicators = []
+		for i in items:
+			try:
+				show_ids = {
+					'imdb': i['show']['ids']['imdb'],
+					'tvdb': str(i['show']['ids']['tvdb']),
+					'tmdb': str(i['show']['ids']['tmdb']),
+					'trakt': str(i['show']['ids']['trakt'])
+				}
+				aired = i['show'].get('aired_episodes', 0)
+
+				# Extract watched episodes (respecting reset_at)
+				watched = []
+				reset_at = i.get('reset_at')
+				for s in i.get('seasons', []):
+					season_num = s['number']
+					if season_num == 0:  # Skip specials
+						continue
+					for e in s.get('episodes', []):
+						# Check if episode watched after reset (if reset exists)
+						last_watched = e.get('last_watched_at')
+						if reset_at is None or (last_watched and last_watched > reset_at):
+							watched.append((season_num, e['number']))
+
+				indicators.append((show_ids, aired, watched))
+			except Exception as e:
+				xbmc.log('[Eternity-Trakt] syncTVShows: Error processing show: %s' % str(e), xbmc.LOGWARNING)
+				continue
+
+		xbmc.log('[Eternity-Trakt] syncTVShows: Fetched %d watched shows' % len(indicators), xbmc.LOGINFO)
+		return indicators
+	except Exception as e:
+		xbmc.log('[Eternity-Trakt] syncTVShows Error: %s' % str(e), xbmc.LOGERROR)
+		import traceback
+		xbmc.log('[Eternity-Trakt] Traceback: %s' % traceback.format_exc(), xbmc.LOGERROR)
+		return []

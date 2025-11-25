@@ -5,6 +5,7 @@
 
 import sys, re
 import datetime, json, time
+from json import loads as jsloads
 from resources.lib import control, playcountDB
 from resources.lib.tmdb_old import cTMDB
 from concurrent.futures import ThreadPoolExecutor
@@ -72,10 +73,21 @@ class episodes:
 			#meta = cTMDB().get_meta_episode('episode', '', self.list[i]['tmdb_id'] , self.list[i]['season'], self.list[i]['episode'], advanced='true')
 			meta = cTMDB()._format_episodes(i, self.title)
 			try:
-				playcount = playcountDB.getPlaycount('episode', 'title', self.title, meta['season'], meta['episode']) # mediatype, column_names, column_value, season=0, episode=0
-				playcount = playcount if playcount else 0
-				overlay = 7 if playcount > 0 else 6
-				meta.update({'playcount': playcount, 'overlay': overlay})
+				# Use new indicator system (Trakt or local database)
+				from resources.lib.modules import playcount as playcountModule
+
+				# Get indicators once (optimization - could be cached in __init__)
+				if not hasattr(self, 'indicators'):
+					self.indicators = playcountModule.getTVShowIndicators(refresh=False)
+
+				# Get sysmeta for IDs
+				sysmeta = jsloads(self.sysmeta) if self.sysmeta else {}
+				imdb_id = sysmeta.get('imdb_id', '')
+				tvdb_id = sysmeta.get('tvdb_id', '')
+
+				overlay = playcountModule.getEpisodeOverlay(self.indicators, imdb_id, tvdb_id, meta['season'], meta['episode'])
+				playcount = 1 if overlay == '7' else 0
+				meta.update({'playcount': playcount, 'overlay': int(overlay)})
 			except:
 				pass
 			self.meta.append(meta)
