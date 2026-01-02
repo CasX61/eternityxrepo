@@ -54,7 +54,8 @@ class player(xbmc.Player):
             self.episode = meta['episode'] if 'episode' in meta else None
 
             self.playcount = meta['playcount'] if 'playcount' in meta else 0
-            self.offset = bookmarks().get(self.name, self.year)
+            # Get offset from Trakt (priority) or local bookmarks (fallback)
+            self.offset = bookmarks().get(self.name, self.year, self.imdb, self.tvdb, self.season, self.episode)
 
             # Trakt scrobbling flag
 
@@ -481,55 +482,144 @@ class subtitles:
 
 
 class bookmarks:
-    def get(self, name, year='0'):
+    def get(self, name, year='0', imdb=None, tvdb=None, season=None, episode=None):
+        """
+        Get playback offset from Trakt (priority) or local bookmarks (fallback)
+        Based on Umbrella's approach - Trakt progress takes precedence
+        """
         from resources.lib import bookmarkDB
         offset = '0'
         try:
-            if not control.getSetting('bookmarks') == 'true': raise Exception()
+            if not control.getSetting('bookmarks') == 'true':
+                return offset
 
-            idFile = hashlib.md5()
-            for i in name:
-                try:
-                    idFile.update(str(i).encode('utf-8'))
-                except:
-                    idFile.update(str(i))
-            for i in year:
-                try:
-                    idFile.update(str(i).encode('utf-8'))
-                except:
-                    idFile.update(str(i))
-            idFile = str(idFile.hexdigest())
+            # STEP 1: Try to get offset from Trakt Playback Progress (PRIORITY)
+            trakt_offset = self._get_trakt_offset(imdb, tvdb, season, episode)
+            if trakt_offset and trakt_offset != '0':
+                xbmc.log('[Eternity-Bookmarks] Using Trakt offset: %s seconds' % trakt_offset, xbmc.LOGINFO)
+                offset = trakt_offset
+            else:
+                # STEP 2: Fallback to local bookmarks
+                xbmc.log('[Eternity-Bookmarks] No Trakt progress, checking local bookmarks', xbmc.LOGDEBUG)
 
-            match = bookmarkDB.get_query(idFile, 'bookmarks.pcl')
+                idFile = hashlib.md5()
+                for i in name:
+                    try:
+                        idFile.update(str(i).encode('utf-8'))
+                    except:
+                        idFile.update(str(i))
+                for i in year:
+                    try:
+                        idFile.update(str(i).encode('utf-8'))
+                    except:
+                        idFile.update(str(i))
+                idFile = str(idFile.hexdigest())
 
-            # dbcon = database.connect(control.bookmarksFile)
-            # dbcur = dbcon.cursor()
-            # dbcur.execute("CREATE TABLE IF NOT EXISTS bookmark (""idFile TEXT, ""timeInSeconds TEXT, ""UNIQUE(idFile)"");")
-            # dbcur.execute("SELECT * FROM bookmark WHERE idFile = '%s'" % idFile)
-            # match = dbcur.fetchone()
-            # dbcon.commit()
-            # dbcon.close()
+                match = bookmarkDB.get_query(idFile, 'bookmarks.pcl')
+                if match:
+                    offset = str(match[1])
+                    xbmc.log('[Eternity-Bookmarks] Using local bookmark: %s seconds' % offset, xbmc.LOGINFO)
 
-            if match: self.offset = str(match[1])
-            if self.offset == '0': raise Exception()
-            minutes, seconds = divmod(float(self.offset), 60)
-            hours, minutes = divmod(minutes, 60)
-            label = '%02d:%02d:%02d' % (hours, minutes, seconds)
-            label = py2_encode("Fortsetzen ab : %s" % label)
+            # STEP 3: If we have an offset, ask user or auto-resume
+            if offset != '0':
+                minutes, seconds = divmod(float(offset), 60)
+                hours, minutes = divmod(minutes, 60)
+                label = '%02d:%02d:%02d' % (hours, minutes, seconds)
+                label = py2_encode("Fortsetzen ab : %s" % label)
 
-            if control.getSetting('bookmarks.auto') == 'false':
-                try:
-                    yes = control.dialog.contextmenu([label, "Vom Anfang abspielen", ])
-                except:
-                    yes = control.yesnoDialog(label, '', '', str(name), "Fortsetzen",
-                                              "Vom Anfang abspielen")
-                if yes:
-                    bookmarkDB.remove_query(idFile, 'bookmarks')
-                    self.offset = '0'
+                if control.getSetting('bookmarks.auto') == 'false':
+                    try:
+                        yes = control.dialog.contextmenu([label, "Vom Anfang abspielen", ])
+                    except:
+                        yes = control.yesnoDialog(label, '', '', str(name), "Fortsetzen",
+                                                  "Vom Anfang abspielen")
+                    if yes:
+                        # User chose to start from beginning
+                        offset = '0'
+                        # Also clear local bookmark
+                        idFile = hashlib.md5()
+                        for i in name:
+                            try: idFile.update(str(i).encode('utf-8'))
+                            except: idFile.update(str(i))
+                        for i in year:
+                            try: idFile.update(str(i).encode('utf-8'))
+                            except: idFile.update(str(i))
+                        idFile = str(idFile.hexdigest())
+                        bookmarkDB.remove_query(idFile, 'bookmarks')
 
-            return self.offset
-        except:
             return offset
+        except Exception as e:
+            xbmc.log('[Eternity-Bookmarks] Error getting bookmark: %s' % str(e), xbmc.LOGERROR)
+            return '0'
+
+    def _get_trakt_offset(self, imdb, tvdb, season, episode):
+        """
+        Get playback offset from Trakt API
+        Returns offset in seconds as string, or '0' if not found
+        """
+        try:
+            # Check if Trakt is enabled and user is authenticated
+            if control.getSetting('trakt.scrobble') != 'true':
+                return '0'
+
+            from resources.lib.modules import trakt
+            if not trakt.getTraktCredentialsInfo():
+                return '0'
+
+            # Get all playback progress items from Trakt
+            playback_items = trakt.getTraktAsJson('/sync/playback/?extended=full', silent=True)
+            if not playback_items:
+                xbmc.log('[Eternity-Bookmarks] No Trakt playback items found', xbmc.LOGDEBUG)
+                return '0'
+
+            xbmc.log('[Eternity-Bookmarks] Checking %d Trakt playback items' % len(playback_items), xbmc.LOGDEBUG)
+
+            # Find matching item
+            for item in playback_items:
+                item_type = item.get('type')
+                progress_percent = item.get('progress', 0)
+
+                if item_type == 'movie' and imdb:
+                    # Match movie by IMDb
+                    movie_ids = item.get('movie', {}).get('ids', {})
+                    item_imdb = movie_ids.get('imdb')
+
+                    if item_imdb and item_imdb == imdb:
+                        # Calculate offset from progress percentage
+                        runtime = item.get('movie', {}).get('runtime', 0)  # in minutes
+                        if runtime > 0:
+                            offset_seconds = int((progress_percent / 100.0) * (runtime * 60))
+                            xbmc.log('[Eternity-Bookmarks] Found Trakt movie progress: %d%% = %d seconds' %
+                                   (progress_percent, offset_seconds), xbmc.LOGINFO)
+                            return str(offset_seconds)
+
+                elif item_type == 'episode' and tvdb and season and episode:
+                    # Match episode by TVDB + Season + Episode
+                    show_ids = item.get('show', {}).get('ids', {})
+                    item_tvdb = str(show_ids.get('tvdb', ''))
+
+                    episode_data = item.get('episode', {})
+                    item_season = episode_data.get('season')
+                    item_episode = episode_data.get('number')
+
+                    if (item_tvdb == str(tvdb) and
+                        int(item_season) == int(season) and
+                        int(item_episode) == int(episode)):
+                        # Calculate offset from progress percentage
+                        runtime = episode_data.get('runtime', 0)  # in minutes
+                        if runtime > 0:
+                            offset_seconds = int((progress_percent / 100.0) * (runtime * 60))
+                            xbmc.log('[Eternity-Bookmarks] Found Trakt episode progress: S%02dE%02d %d%% = %d seconds' %
+                                   (int(season), int(episode), progress_percent, offset_seconds), xbmc.LOGINFO)
+                            return str(offset_seconds)
+
+            xbmc.log('[Eternity-Bookmarks] No matching Trakt progress found for imdb=%s, tvdb=%s, S%sE%s' %
+                   (imdb, tvdb, season, episode), xbmc.LOGDEBUG)
+            return '0'
+
+        except Exception as e:
+            xbmc.log('[Eternity-Bookmarks] Error getting Trakt offset: %s' % str(e), xbmc.LOGERROR)
+            return '0'
 
 
     def reset(self, currentTime, totalTime, name, year='0'):

@@ -56,7 +56,7 @@
         <setting id="provider.kinoger.check" label="Check" type="bool" default="true" visible="false"/>
         <setting type="sep"/>
         <setting id="provider.megakino" type="bool" label="MEGAKINO   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
-        <setting id="provider.megakino.domain" label="Domain (Standard: w1.megakino.do)" type="text" default="w1.megakino.do" visible="true"/>
+        <setting id="provider.megakino.domain" label="Domain" type="text" default="megakino.lol" visible="true"/>
         <setting id="provider.megakino.check" label="Check" type="bool" default="true" visible="false"/>
         <setting type="sep"/>
         <setting id="provider.moflix" type="bool" label="MOFLIX-STREAM   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
@@ -66,6 +66,10 @@
         <setting id="provider.movie2k" type="bool" label="MOVIE2k   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true"/>
         <setting id="provider.movie2k.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>
         <setting id="provider.movie2k.check" label="Check" type="bool" default="true" visible="false"/>
+        <setting type="sep"/>
+        <setting id="provider.primekiste" type="bool" label="PRIMEKISTE   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
+        <setting id="provider.primekiste.domain" label="Domain (Standard: primekiste.com)" type="text" default="primekiste.com" visible="true"/>
+        <setting id="provider.primekiste.check" label="Check" type="bool" default="true" visible="false"/>
         <setting type="sep"/>
         <setting id="provider.serienstream" type="bool"  label="SERIENSTREAM   |   [B][COLOR green]Serien[/COLOR][/B]" default="true"/>
         <setting id="provider.serienstream.domain" label="[B][COLOR red]PluginError oder Domain nicht erreichbar[/COLOR][/B]" type="text" default="" visible="eq(1,false)"/>

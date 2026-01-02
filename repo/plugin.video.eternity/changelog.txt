@@ -1,3 +1,9 @@
+[B]v1.0.2 - 02.01.2026[/B]
+===================
+
+-- NEU Primekiste Scraper hinzugefügt
+-- FIX Trakt Resume: Videos starten jetzt an gespeicherter Position
+
 [B]v1.0.1 - 25.11.2025[/B]
 ===================
 
