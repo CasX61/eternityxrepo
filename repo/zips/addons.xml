@@ -22,7 +22,7 @@
             <fanart>fanart.jpg</fanart>
         </assets>
     </extension>
-</addon><addon id="plugin.video.eternity" version="1.0.2" name="[B]Eternity[/B]" provider-name="CasX">
+</addon><addon id="plugin.video.eternity" version="1.0.3" name="[B]Eternity[/B]" provider-name="CasX">
     <requires>
         <import addon="xbmc.python" version="3.0.0" />
         <import addon="script.module.requests" />
@@ -55,6 +55,13 @@
         <summary lang="de_DE">Eternity: Streaming bis in die Ewigkeit</summary>
         <summary lang="en_GB">Eternity: Streaming till Eternity</summary>
         <news>
+[B]v1.0.3 - 02.01.2026[/B]
+===================
+
+-- Domain: Megakino, Movie2k
+-- FIX Serienstream, inkl Englisch als Fallback
+
+
 [B]v1.0.2 - 02.01.2026[/B]
 ===================
 
