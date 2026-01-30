@@ -56,7 +56,7 @@
         <setting id="provider.kinoger.check" label="Check" type="bool" default="true" visible="false"/>
         <setting type="sep"/>
         <setting id="provider.megakino" type="bool" label="MEGAKINO   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />
-        <setting id="provider.megakino.domain" label="Domain" type="text" default="megakino.lol" visible="true"/>
+        <setting id="provider.megakino.domain" label="Domain" type="text" default="" visible="true"/>
         <setting id="provider.megakino.check" label="Check" type="bool" default="true" visible="false"/>
         <setting type="sep"/>
         <setting id="provider.moflix" type="bool" label="MOFLIX-STREAM   |   [B][COLOR blue]Filme &amp; Serien[/COLOR][/B]" default="true" />

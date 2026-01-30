@@ -59,7 +59,7 @@ class source:
         self.language = ['de']
         self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
         self.base_link = 'https://' + self.domain
-        self.search_link = '/serien'
+        self.search_link = '/suche?term='  # NEU: Echte Suche statt komplette Liste
         self.bypass_dns = (getSetting('bypassDNSlock', 'false') == 'true')
         self.ip_cache = None
         self.sources = []
@@ -127,30 +127,62 @@ class source:
         aLinks = []
         if season == 0: return self.sources
         try:
+            import xbmc
             t = [cleantitle.get(i) for i in titles if i]
-            url = urljoin(self.base_link, self.search_link)
 
-            # Use DNS Bypass if enabled, otherwise use cRequestHandler
-            if self.bypass_dns:
-                sHtmlContent = self.make_request(url)
-                if not sHtmlContent:
-                    return self.sources
-            else:
-                oRequest = cRequestHandler(url)
-                oRequest.cacheTime = 60*60*24*7
-                sHtmlContent = oRequest.request()
+            # NEU: Für jeden Titel eine echte Suche durchführen
+            for title in titles:
+                if not title:
+                    continue
 
-            links = dom_parser.parse_dom(sHtmlContent, "div", attrs={"class": "genre"})
-            links = dom_parser.parse_dom(links, "a")
-            links = [(i.attrs["href"], i.content) for i in links]
-            for i in links:
-                for a in t:
-                    try:
-                        if any([a in cleantitle.get(i[1])]):
-                            aLinks.append({'source': i[0]})
-                            break
-                    except:
-                        pass
+                # URL encode the search term
+                search_term = urllib.parse.quote(title)
+                url = urljoin(self.base_link, self.search_link + search_term)
+
+                xbmc.log('[Serienstream] Search URL: %s' % url, xbmc.LOGINFO)
+
+                # Use DNS Bypass if enabled, otherwise use cRequestHandler
+                if self.bypass_dns:
+                    sHtmlContent = self.make_request(url)
+                    if not sHtmlContent:
+                        continue
+                else:
+                    oRequest = cRequestHandler(url)
+                    sHtmlContent = oRequest.request()
+
+                # NEU: Regex für /serie/ Links statt dom_parser
+                patterns = [
+                    r'href="https?://[^/]+(/serie/[^"]+)"',
+                    r'href="(/serie/[^"]+)"',
+                ]
+                all_serie_hrefs = []
+                for pattern in patterns:
+                    matches = re.findall(pattern, sHtmlContent, re.IGNORECASE)
+                    all_serie_hrefs.extend(matches)
+
+                all_serie_hrefs = list(set(all_serie_hrefs))
+
+                for href in all_serie_hrefs:
+                    # Titel aus href extrahieren oder aus title Attribut
+                    title_pattern = r'href="[^"]*' + re.escape(href) + r'"[^>]*title="([^"]+)"'
+                    title_match = re.search(title_pattern, sHtmlContent, re.IGNORECASE)
+                    if title_match:
+                        series_title = title_match.group(1)
+                    else:
+                        series_title = href.split('/')[-1].replace('-', ' ')
+
+                    for a in t:
+                        try:
+                            if a in cleantitle.get(series_title):
+                                aLinks.append({'source': href})
+                                xbmc.log('[Serienstream] Match: %s' % href, xbmc.LOGINFO)
+                                break
+                        except:
+                            pass
+
+                if aLinks:
+                    break
+
             if len(aLinks) == 0: return self.sources
             for i in aLinks:
                 url = i['source']
@@ -176,26 +208,50 @@ class source:
                 sHtmlContent = cRequestHandler(url).request()
 
             import xbmc
-            xbmc.log('[Serienstream] Parsing episode page for IMDb', xbmc.LOGINFO)
+            xbmc.log('[Serienstream] Parsing episode page', xbmc.LOGINFO)
 
-            a = dom_parser.parse_dom(sHtmlContent, 'a', attrs={'class': 'imdb-link'}, req='href')
-            foundImdb = a[0].attrs["data-imdb"]
-            xbmc.log('[Serienstream] Found IMDb: %s, Expected: %s' % (foundImdb, imdb), xbmc.LOGINFO)
-            if not foundImdb == imdb:
-                xbmc.log('[Serienstream] IMDb mismatch, skipping', xbmc.LOGINFO)
-                return
+            # IMDB Check - optional, mit Absicherung falls Element nicht existiert
+            if imdb:
+                a = dom_parser.parse_dom(sHtmlContent, 'a', attrs={'class': 'imdb-link'}, req='href')
+                if a:
+                    foundImdb = a[0].attrs.get("data-imdb", '')
+                    xbmc.log('[Serienstream] Found IMDb: %s, Expected: %s' % (foundImdb, imdb), xbmc.LOGINFO)
+                    if foundImdb and not foundImdb == imdb:
+                        xbmc.log('[Serienstream] IMDb mismatch, skipping', xbmc.LOGINFO)
+                        return
 
             xbmc.log('[Serienstream] Parsing hosters', xbmc.LOGINFO)
-            lr = dom_parser.parse_dom(sHtmlContent, 'div', attrs={'class': 'hosterSiteVideo'})
-            r = dom_parser.parse_dom(lr, 'li', attrs={'data-lang-key': re.compile('[1]')}) #- only german
-            if r == []: r = dom_parser.parse_dom(lr, 'li', attrs={'data-lang-key': re.compile('[1|2|3]')})
+            # NEU: Hoster-Pattern für neue Website-Struktur
+            # Attribute können auf verschiedenen Zeilen stehen, daher [\s\S]*? verwenden
+            pattern = r'data-link-id="([^"]+)"[\s\S]*?data-play-url="([^"]+)"[\s\S]*?data-provider-name="([^"]+)"[\s\S]*?data-language-id="([^"]+)"'
+            matches = re.findall(pattern, sHtmlContent)
 
-            xbmc.log('[Serienstream] Found %d hosters' % len(r), xbmc.LOGINFO)
+            xbmc.log('[Serienstream] Found %d hosters' % len(matches), xbmc.LOGINFO)
 
-            r = [(i.attrs['data-link-target'], dom_parser.parse_dom(i, 'h4'),
-                  'subbed' if i.attrs['data-lang-key'] == '3' else '' if i.attrs['data-lang-key'] == '1' else 'English/OV' if i.attrs['data-lang-key'] == '2' else '') for i
-                 in r]
-            r = [(i[0], re.sub('\s(.*)', '', i[1][0].content), 'HD' if 'hd' in i[1][0][1].lower() else 'SD', i[2]) for i in r]
+            # Erst Deutsch sammeln, dann Englisch als Fallback
+            r_german = []
+            r_english = []
+            r_subbed = []
+            for link_id, play_url, provider_name, language_id in matches:
+                if language_id == '1':  # Deutsch
+                    r_german.append((play_url, provider_name, 'HD', ''))
+                elif language_id == '2':  # Englisch
+                    r_english.append((play_url, provider_name, 'HD', 'English/OV'))
+                elif language_id == '3':  # Subbed
+                    r_subbed.append((play_url, provider_name, 'HD', 'subbed'))
+
+            # Deutsch bevorzugen, sonst Englisch, sonst Subbed als Fallback
+            if r_german:
+                r = r_german
+                xbmc.log('[Serienstream] Using %d German streams' % len(r), xbmc.LOGINFO)
+            elif r_english:
+                r = r_english
+                xbmc.log('[Serienstream] No German, using %d English streams as fallback' % len(r), xbmc.LOGINFO)
+            elif r_subbed:
+                r = r_subbed
+                xbmc.log('[Serienstream] No German/English, using %d subbed streams as fallback' % len(r), xbmc.LOGINFO)
+            else:
+                r = []
 
             xbmc.log('[Serienstream] Getting login credentials', xbmc.LOGINFO)
             login, password = self._getLogin()
