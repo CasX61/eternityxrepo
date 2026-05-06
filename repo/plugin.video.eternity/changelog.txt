@@ -1,6 +1,12 @@
 [B]v1.0.3 - 02.01.2026[/B]
 ===================
 
+- serienstream - Suche
+
+
+[B]v1.0.3 - 02.01.2026[/B]
+===================
+
 -- Domain: Megakino, Movie2k
 -- FIX Serienstream, inkl Englisch als Fallback
 

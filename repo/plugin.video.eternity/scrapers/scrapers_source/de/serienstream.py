@@ -3,6 +3,8 @@
 #2023-03-20
 # edit 2025-06-14
 # edit 2025-11-21 - DNS Bypass Implementation
+# edit 2026-01-30 - FIX Serienstream
+# edit 2026-02-24 -by neires - eindeutige Serien Suche mit IMDB-Nummer
 
 import re
 import datetime
@@ -123,25 +125,178 @@ class source:
             xbmc.log('[Serienstream] Traceback: %s' % traceback.format_exc(), xbmc.LOGERROR)
             return None
 
+    def generate_series_urls(self, title):
+        """Generiert verschiedene mögliche Series-URLs aus dem Titel"""
+        import re
+        
+        # Basis-URLs sammeln
+        urls = []
+        
+        # 1. Normale Bereinigung (Standard) - OHNE Apostroph
+        def clean_title(t):
+            # Alles in Kleinbuchstaben
+            url = t.lower()
+            
+            # Entferne Klammern und ihren Inhalt (wie (2019))
+            url = re.sub(r'\([^)]*\)', '', url)
+            
+            # Ersetze ":" durch nichts
+            url = url.replace(':', '')
+            
+            # Ersetze "&" durch "-"
+            url = url.replace('&', '-')
+            
+            # Entferne Apostroph komplett für die Basis-Version
+            url = url.replace("'", "").replace("’", "")
+            
+            # Entferne alle anderen nicht-alphanumerischen Zeichen (außer Leerzeichen)
+            url = re.sub(r'[^a-z0-9\s-]', '', url)
+            
+            # Mehrfache Leerzeichen entfernen
+            url = re.sub(r'\s+', ' ', url)
+            
+            # Leerzeichen durch Bindestriche ersetzen
+            url = url.strip().replace(' ', '-')
+            
+            # Mehrfache Bindestriche entfernen
+            url = re.sub(r'-+', '-', url)
+            
+            # Bindestriche am Anfang und Ende entfernen
+            url = url.strip('-')
+            
+            return url
+        
+        # Standard-URL (Apostroph entfernt)
+        standard_url = clean_title(title)
+        urls.append(standard_url)
+        
+        # 2. Apostroph durch Bindestrich ersetzen (z.B. "da-vinci-s-demons")
+        # Prüfe ob der originale Titel einen Apostroph enthält
+        if "'" in title or "’" in title:
+            # Für die Version mit Bindestrich müssen wir den Apostroph durch - ersetzen
+            # Aber wir müssen sicherstellen, dass wir nicht doppelte Bindestriche bekommen
+            
+            # Erstelle eine Version wo Apostroph durch - ersetzt wird
+            title_with_hyphen = title.replace("'", "-").replace("’", "-")
+            hyphen_url = clean_title(title_with_hyphen)
+            
+            # Nur hinzufügen wenn unterschiedlich zur Standard-URL
+            if hyphen_url != standard_url:
+                urls.append(hyphen_url)
+        
+        # Entferne Duplikate
+        unique_urls = []
+        for url in urls:
+            if url not in unique_urls and url:
+                unique_urls.append(url)
+        
+        # Erstelle die finalen /serie/ URLs
+        result = ['/serie/' + url for url in unique_urls]
+        
+        return result
+		
+
     def run(self, titles, year, season=0, episode=0, imdb='', hostDict=None):
-        aLinks = []
-        if season == 0: return self.sources
+        if season == 0: 
+            return self.sources
         try:
             import xbmc
             t = [cleantitle.get(i) for i in titles if i]
+            
+            xbmc.log('[Serienstream] ===== SCRAPER GESTARTET =====', xbmc.LOGINFO)
+            xbmc.log('[Serienstream] Titel: %s' % str(titles), xbmc.LOGINFO)
+            xbmc.log('[Serienstream] Staffel: %s, Episode: %s' % (season, episode), xbmc.LOGINFO)
+            xbmc.log('[Serienstream] IMDb: %s' % imdb, xbmc.LOGINFO)
 
-            # NEU: Für jeden Titel eine echte Suche durchführen
+            # 1. Suche mit IMDb-Nummer (falls vorhanden)
+            if imdb and imdb.startswith('tt'):
+                xbmc.log('[Serienstream] Suche mit IMDb-Nummer: %s' % imdb, xbmc.LOGINFO)
+                
+                search_term = urllib.parse.quote(imdb)
+                url = urljoin(self.base_link, self.search_link + search_term)
+                
+                if self.bypass_dns:
+                    sHtmlContent = self.make_request(url)
+                else:
+                    oRequest = cRequestHandler(url)
+                    sHtmlContent = oRequest.request()
+                
+                if sHtmlContent:
+                    # Extrahiere den Serien-Link aus den Suchergebnissen
+                    patterns = [
+                        r'href="([^"]*?/serie/[^"]*?)"',
+                        r'href=\'([^\']*?/serie/[^\']*?)\'',
+                    ]
+                    
+                    all_serie_hrefs = []
+                    for pattern in patterns:
+                        matches = re.findall(pattern, sHtmlContent, re.IGNORECASE)
+                        all_serie_hrefs.extend(matches)
+                    
+                    all_serie_hrefs = list(set(all_serie_hrefs))
+                    
+                    if all_serie_hrefs:
+                        # Nimm den ersten gefundenen Link (sollte der richtige sein)
+                        serie_url = all_serie_hrefs[0]
+                        xbmc.log('[Serienstream] IMDb-Suche erfolgreich: %s' % serie_url, xbmc.LOGINFO)
+                        
+                        # Verarbeite den gefundenen Link
+                        self.run2(serie_url, year, season=season, episode=episode, hostDict=hostDict, imdb=imdb)
+                        
+                        if len(self.sources) > 0:
+                            xbmc.log('[Serienstream] Quellen gefunden via IMDb-Suche!', xbmc.LOGINFO)
+                            return self.sources
+                    else:
+                        xbmc.log('[Serienstream] Keine Treffer bei IMDb-Suche', xbmc.LOGINFO)
+                else:
+                    xbmc.log('[Serienstream] Keine Antwort bei IMDb-Suche', xbmc.LOGINFO)
+
+            # 2. Fallback: Direkte Links basierend auf Titeln (wie gehabt)
+            xbmc.log('[Serienstream] Starte Titel-basierte Suche als Fallback', xbmc.LOGINFO)
+            
+            for title in titles:
+                if not title:
+                    continue
+                    
+                # Generiere mögliche URLs für diesen Titel
+                possible_urls = self.generate_series_urls(title)
+                
+                xbmc.log('[Serienstream] Mögliche URLs für "%s": %s' % (title, str(possible_urls)), xbmc.LOGINFO)
+                
+                for direct_url in possible_urls:
+                    xbmc.log('[Serienstream] Versuche direkten Link: %s' % direct_url, xbmc.LOGINFO)
+                    
+                    test_url = urljoin(self.base_link, direct_url)
+                    
+                    try:
+                        if self.bypass_dns:
+                            test_html = self.make_request(test_url)
+                        else:
+                            test_html = cRequestHandler(test_url).request()
+                        
+                        if test_html and len(test_html) > 1000 and '404 - Not Found' not in test_html:
+                            xbmc.log('[Serienstream] Direkter Link funktioniert: %s' % direct_url, xbmc.LOGINFO)
+                            self.run2(direct_url, year, season=season, episode=episode, hostDict=hostDict, imdb=imdb)
+                            if len(self.sources) > 0:
+                                xbmc.log('[Serienstream] Quellen gefunden bei direktem Link!', xbmc.LOGINFO)
+                                return self.sources
+                    except Exception as e:
+                        xbmc.log('[Serienstream] Direkter Link fehlgeschlagen: %s' % str(e), xbmc.LOGINFO)
+
+            # 3. Letzter Fallback: Normale Suche
+            xbmc.log('[Serienstream] Starte normale Suche als letzten Fallback', xbmc.LOGINFO)
+            
+            all_potential_matches = []
+
             for title in titles:
                 if not title:
                     continue
 
-                # URL encode the search term
+                xbmc.log('[Serienstream] Suche nach: %s' % title, xbmc.LOGINFO)
+                
                 search_term = urllib.parse.quote(title)
                 url = urljoin(self.base_link, self.search_link + search_term)
-
-                xbmc.log('[Serienstream] Search URL: %s' % url, xbmc.LOGINFO)
-
-                # Use DNS Bypass if enabled, otherwise use cRequestHandler
+                
                 if self.bypass_dns:
                     sHtmlContent = self.make_request(url)
                     if not sHtmlContent:
@@ -150,45 +305,51 @@ class source:
                     oRequest = cRequestHandler(url)
                     sHtmlContent = oRequest.request()
 
-                # NEU: Regex für /serie/ Links statt dom_parser
+                # Links extrahieren
                 patterns = [
-                    r'href="https?://[^/]+(/serie/[^"]+)"',
-                    r'href="(/serie/[^"]+)"',
+                    r'href="([^"]*?/serie/[^"]*?)"',
+                    r'href=\'([^\']*?/serie/[^\']*?)\'',
                 ]
+                
                 all_serie_hrefs = []
                 for pattern in patterns:
                     matches = re.findall(pattern, sHtmlContent, re.IGNORECASE)
                     all_serie_hrefs.extend(matches)
-
+                
                 all_serie_hrefs = list(set(all_serie_hrefs))
 
+                # Teiltreffer sammeln
                 for href in all_serie_hrefs:
-                    # Titel aus href extrahieren oder aus title Attribut
-                    title_pattern = r'href="[^"]*' + re.escape(href) + r'"[^>]*title="([^"]+)"'
-                    title_match = re.search(title_pattern, sHtmlContent, re.IGNORECASE)
-                    if title_match:
-                        series_title = title_match.group(1)
-                    else:
-                        series_title = href.split('/')[-1].replace('-', ' ')
-
-                    for a in t:
+                    series_title = href.split('/')[-1].replace('-', ' ')
+                    cleaned_series_title = cleantitle.get(series_title)
+                    
+                    for clean_title in t:
                         try:
-                            if a in cleantitle.get(series_title):
-                                aLinks.append({'source': href})
-                                xbmc.log('[Serienstream] Match: %s' % href, xbmc.LOGINFO)
+                            if clean_title in cleaned_series_title or cleaned_series_title in clean_title:
+                                if href not in all_potential_matches:
+                                    all_potential_matches.append(href)
+                                    xbmc.log('[Serienstream] Teiltreffer: %s -> %s' % (href, series_title), xbmc.LOGINFO)
                                 break
                         except:
                             pass
 
-                if aLinks:
-                    break
+            # Teiltreffer verarbeiten
+            if len(all_potential_matches) > 0:
+                xbmc.log('[Serienstream] Verarbeite %d Teiltreffer' % len(all_potential_matches), xbmc.LOGINFO)
+                
+                for href in all_potential_matches:
+                    xbmc.log('[Serienstream] Versuche: %s' % href, xbmc.LOGINFO)
+                    self.run2(href, year, season=season, episode=episode, hostDict=hostDict, imdb=imdb)
+                    if len(self.sources) > 0:
+                        xbmc.log('[Serienstream] Erfolg bei: %s' % href, xbmc.LOGINFO)
+                        break
 
-            if len(aLinks) == 0: return self.sources
-            for i in aLinks:
-                url = i['source']
-                self.run2(url, year, season=season, episode=episode, hostDict=hostDict, imdb=imdb)
-        except:
-            return self.sources
+        except Exception as e:
+            xbmc.log('[Serienstream] Fehler: %s' % str(e), xbmc.LOGERROR)
+            import traceback
+            traceback.print_exc()
+            
+        xbmc.log('[Serienstream] ===== SCRAPER BEENDET mit %d Quellen =====' % len(self.sources), xbmc.LOGINFO)
         return self.sources
 
     def run2(self, url, year, season=0, episode=0, hostDict=None, imdb=None):
