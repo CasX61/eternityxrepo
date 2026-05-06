@@ -13,14 +13,14 @@ from resources.lib.control import getSetting
 import xbmc
 
 SITE_IDENTIFIER = 'megakino'
-SITE_DOMAIN = 'megakino1.com'
+SITE_DOMAIN = 'megakino3.tv/'
 SITE_NAME = SITE_IDENTIFIER.upper()
 
 class source:
     def __init__(self):
         self.priority = 1
         self.language = ['de']
-        self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
+        self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN).rstrip('/')
         self.base_link = 'https://' + self.domain
         self.search_link = self.base_link + '/index.php?do=search&subaction=search&story=%s'
         self.sources = []
@@ -30,23 +30,21 @@ class source:
             'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
             'Referer': self.base_link
         }
+        self.session = requests.Session()
 
     def get_html(self, url):
-        """Fetch HTML with automatic token handling"""
         try:
-            session = requests.Session()
-            r = session.get(url, headers=self.headers, timeout=10)
+            r = self.session.get(url, headers=self.headers, timeout=10)
             html = r.text
 
-            # Check if token is needed
             if html and 'yg=token' in html:
                 xbmc.log('MEGAKINO: Token required, fetching...', xbmc.LOGINFO)
                 token_url = self.base_link + '/index.php?yg=token'
                 token_headers = self.headers.copy()
                 token_headers.update({'X-Requested-With': 'XMLHttpRequest', 'Referer': url})
-                session.get(token_url, headers=token_headers, timeout=10)
-                time.sleep(0.5)
-                r = session.get(url, headers=self.headers, timeout=10)
+                self.session.get(token_url, headers=token_headers, timeout=10)
+                time.sleep(0.2)
+                r = self.session.get(url, headers=self.headers, timeout=10)
                 html = r.text
 
             return html if html and len(html) > 500 else ""

@@ -81,7 +81,6 @@
     </category>
     <category label="Wiedergabe">
         <setting id="progress.dialog" type="enum" label="Fortschrittsdialog" values="Vordergrund|Hintergrund" default="0" />
-        <setting id="prem.identify" type="enum" label="Textfarbe für Premium-Links" values="Blau|Rot|Gelb|Altrosa|Cyan|Grasgrün|Gold|Magenta|Gelbgrün|Ohne Farbe" default="0" />
         <setting type="lsep" label="Dateinanbieter-Filter" />
         <setting id="hosts.quality" type="enum" label="Höchste Qualität" values="4K|1440p|1080p|720p|480p" default="0" />
         <setting id="hosts.sort.priority" type="bool" label="Indexseiten bei Serien nach Priorität sortieren" default="true" />
@@ -192,10 +191,6 @@
         <setting id="api.tmdb" type="text" option="hidden" label="API-Key" default="637b0f719c269e9fb609f34f5c35b7e6" />
         <setting type="lsep" label="FANART.TV" />
         <setting id="api.fanart.tv" type="text" label="API-Key" option="hidden" default="afac434b5463ea49ce5ff405fe600b3e" />
-        <setting type="lsep" label="Debrid-Service" />
-        <setting type="text" label="[COLOR blue]Konfiguriere Debrid-Dienste in den ResolveURL-Einstellungen.[/COLOR]" />
-        <setting type="text" label="[COLOR blue]Unterstützt: Real-Debrid, Premiumize, AllDebrid, etc.[/COLOR]" />
-        <setting id="open_resolveurl_settings" type="action" label="ResolveURL-Einstellungen" enable="true" option="close" action="RunPlugin(plugin://plugin.video.eternity/?action=openResolveURLSettings)" />
         <setting type="lsep" label="Konto [B]opensubtitles.org[/B]"/>
         <!-- <setting id="subtitles.os_user" type="text" label="UserName" default=""/>
         <setting id="subtitles.os_pass" type="text" option="hidden" label="Password" default=""/> -->

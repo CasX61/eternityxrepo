@@ -327,15 +327,8 @@ class sources:
         titles = utils.get_titles_for_search(title, originaltitle, aliases)
 
         futures = {self.executor.submit(self._getSource, titles, year, season, episode, imdb, provider[0], provider[1]): provider[0] for provider in sourceDict}
-        provider_names = {provider[0].upper() for provider in sourceDict}
-
-        # Check debrid status
-        from resources.lib.modules import debrid
-        debrid_status = debrid.status()
 
         string4 = "Total"
-        string6 = "Prem"
-        string7 = "Normal"
 
         try: timeout = int(control.getSetting('scrapers.timeout'))
         except: pass
@@ -347,11 +340,7 @@ class sources:
         source_1080 = 0
         source_720 = 0
         source_sd = 0
-        d_source_4k = 0
-        d_source_1080 = 0
-        d_source_720 = 0
-        d_source_sd = 0
-        total = d_total = 0
+        total = 0
         total_format = '[COLOR %s][B]%s[/B][/COLOR]'
         pdiag_format = ' 4K: %s | 1080p: %s | 720p: %s | SD: %s | %s: %s                                         '.split('|')
 
@@ -364,58 +353,26 @@ class sources:
                     pass
 
                 if len(self.sources) > 0:
-                    # Count non-debrid sources
                     if quality in ['0']:
-                        source_4k = len([e for e in self.sources if e['quality'] == '4K' and 'debrid' not in e])
-                        source_1080 = len([e for e in self.sources if e['quality'] in ['1440p','1080p'] and 'debrid' not in e])
-                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' not in e])
-                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' not in e])
+                        source_4k = len([e for e in self.sources if e['quality'] == '4K'])
+                        source_1080 = len([e for e in self.sources if e['quality'] in ['1440p','1080p']])
+                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD']])
+                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD']])
                     elif quality in ['1']:
-                        source_1080 = len([e for e in self.sources if e['quality'] in ['1440p','1080p'] and 'debrid' not in e])
-                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' not in e])
-                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' not in e])
+                        source_1080 = len([e for e in self.sources if e['quality'] in ['1440p','1080p']])
+                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD']])
+                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD']])
                     elif quality in ['2']:
-                        source_1080 = len([e for e in self.sources if e['quality'] in ['1080p'] and 'debrid' not in e])
-                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' not in e])
-                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' not in e])
+                        source_1080 = len([e for e in self.sources if e['quality'] in ['1080p']])
+                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD']])
+                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD']])
                     elif quality in ['3']:
-                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' not in e])
-                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' not in e])
+                        source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD']])
+                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD']])
                     else:
-                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' not in e])
+                        source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD']])
 
                     total = source_4k + source_1080 + source_720 + source_sd
-
-                    # Count debrid sources
-                    if debrid_status:
-                        if quality in ['0']:
-                            d_source_4k = len([e for e in self.sources if e['quality'] == '4K' and 'debrid' in e])
-                            d_source_1080 = len([e for e in self.sources if e['quality'] in ['1440p','1080p'] and 'debrid' in e])
-                            d_source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' in e])
-                            d_source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' in e])
-                        elif quality in ['1']:
-                            d_source_1080 = len([e for e in self.sources if e['quality'] in ['1440p','1080p'] and 'debrid' in e])
-                            d_source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' in e])
-                            d_source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' in e])
-                        elif quality in ['2']:
-                            d_source_1080 = len([e for e in self.sources if e['quality'] in ['1080p'] and 'debrid' in e])
-                            d_source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' in e])
-                            d_source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' in e])
-                        elif quality in ['3']:
-                            d_source_720 = len([e for e in self.sources if e['quality'] in ['720p','HD'] and 'debrid' in e])
-                            d_source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' in e])
-                        else:
-                            d_source_sd = len([e for e in self.sources if e['quality'] not in ['4K','1440p','1080p','720p','HD'] and 'debrid' in e])
-
-                        d_total = d_source_4k + d_source_1080 + d_source_720 + d_source_sd
-
-                # Create labels for debrid sources
-                if debrid_status:
-                    d_4k_label = total_format % ('red', d_source_4k) if d_source_4k == 0 else total_format % ('lime', d_source_4k)
-                    d_1080_label = total_format % ('red', d_source_1080) if d_source_1080 == 0 else total_format % ('lime', d_source_1080)
-                    d_720_label = total_format % ('red', d_source_720) if d_source_720 == 0 else total_format % ('lime', d_source_720)
-                    d_sd_label = total_format % ('red', d_source_sd) if d_source_sd == 0 else total_format % ('lime', d_source_sd)
-                    d_total_label = total_format % ('red', d_total) if d_total == 0 else total_format % ('lime', d_total)
 
                 source_4k_label = total_format % ('red', source_4k) if source_4k == 0 else total_format % ('lime', source_4k)
                 source_1080_label = total_format % ('red', source_1080) if source_1080 == 0 else total_format % ('lime', source_1080)
@@ -428,83 +385,35 @@ class sources:
 
                     percent = int(100 * float(i) / (2 * timeout) + 1)
 
-                    # Build quality lines based on debrid status
-                    if debrid_status:
-                        # With debrid: show Prem and Normal lines
-                        if quality in ['0']:
-                            line1 = ('%s: ' + '|'.join(pdiag_format)) % (string6, d_4k_label, d_1080_label, d_720_label, d_sd_label, str(string4), d_total_label)
-                            line2 = ('%s: ' + '|'.join(pdiag_format)) % (string7, source_4k_label, source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
-                        elif quality in ['1']:
-                            line1 = ('%s: ' + '|'.join(pdiag_format[1:])) % (string6, d_1080_label, d_720_label, d_sd_label, str(string4), d_total_label)
-                            line2 = ('%s: ' + '|'.join(pdiag_format[1:])) % (string7, source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
-                        elif quality in ['2']:
-                            line1 = ('%s: ' + '|'.join(pdiag_format[1:])) % (string6, d_1080_label, d_720_label, d_sd_label, str(string4), d_total_label)
-                            line2 = ('%s: ' + '|'.join(pdiag_format[1:])) % (string7, source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
-                        elif quality in ['3']:
-                            line1 = ('%s: ' + '|'.join(pdiag_format[2:])) % (string6, d_720_label, d_sd_label, str(string4), d_total_label)
-                            line2 = ('%s: ' + '|'.join(pdiag_format[2:])) % (string7, source_720_label, source_sd_label, str(string4), source_total_label)
-                        else:
-                            line1 = ('%s: ' + '|'.join(pdiag_format[3:])) % (string6, d_sd_label, str(string4), d_total_label)
-                            line2 = ('%s: ' + '|'.join(pdiag_format[3:])) % (string7, source_sd_label, str(string4), source_total_label)
+                    if quality in ['0']:
+                        line1 = '|'.join(pdiag_format) % (source_4k_label, source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
+                    elif quality in ['1']:
+                        line1 = '|'.join(pdiag_format[1:]) % (source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
+                    elif quality in ['2']:
+                        line1 = '|'.join(pdiag_format[1:]) % (source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
+                    elif quality in ['3']:
+                        line1 = '|'.join(pdiag_format[2:]) % (source_720_label, source_sd_label, str(string4), source_total_label)
                     else:
-                        # Without debrid: show only quality line
-                        if quality in ['0']:
-                            line1 = '|'.join(pdiag_format) % (source_4k_label, source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
-                        elif quality in ['1']:
-                            line1 = '|'.join(pdiag_format[1:]) % (source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
-                        elif quality in ['2']:
-                            line1 = '|'.join(pdiag_format[1:]) % (source_1080_label, source_720_label, source_sd_label, str(string4), source_total_label)
-                        elif quality in ['3']:
-                            line1 = '|'.join(pdiag_format[2:]) % (source_720_label, source_sd_label, str(string4), source_total_label)
-                        else:
-                            line1 = '|'.join(pdiag_format[3:]) % (source_sd_label, str(string4), source_total_label)
+                        line1 = '|'.join(pdiag_format[3:]) % (source_sd_label, str(string4), source_total_label)
 
-                        # Build remaining providers line (line2)
-                        if (i / 2) < timeout:
-                            string3 = "Verbleibende Indexseiten: %s"
-                        else:
-                            string3 = 'Waiting for: %s'
+                    if (i / 2) < timeout:
+                        string3 = "Verbleibende Indexseiten: %s"
+                    else:
+                        string3 = 'Waiting for: %s'
 
-                        if len(info) > 6:
-                            line2 = string3 % (str(len(info)))
-                        elif len(info) > 1:
-                            line2 = string3 % (', '.join(info))
-                        elif len(info) == 1:
-                            line2 = string3 % (''.join(info))
-                        else:
-                            line2 = 'Suche beendet!'
+                    if len(info) > 6:
+                        line2 = string3 % (str(len(info)))
+                    elif len(info) > 1:
+                        line2 = string3 % (', '.join(info))
+                    elif len(info) == 1:
+                        line2 = string3 % (''.join(info))
+                    else:
+                        line2 = 'Suche beendet!'
 
-                    # Build remaining providers line (line3) for debrid mode
-                    if debrid_status:
-                        if (i / 2) < timeout:
-                            string3 = "Verbleibende Indexseiten: %s"
-                        else:
-                            string3 = 'Waiting for: %s'
-
-                        if len(info) > 6:
-                            line3 = string3 % (str(len(info)))
-                        elif len(info) > 1:
-                            line3 = string3 % (', '.join(info))
-                        elif len(info) == 1:
-                            line3 = string3 % (''.join(info))
-                        else:
-                            line3 = 'Suche beendet!'
-
-                    # Update dialog with multi-line message (Kodi 20+ style)
                     if progressDialog == control.progressDialogBG:
-                        # Background dialog: combine lines
-                        if debrid_status:
-                            message = line1 + ' | ' + line3
-                        else:
-                            message = line1 + ' | ' + line2
-                        progressDialog.update(max(1, percent), message)
+                        progressDialog.update(max(1, percent), line1 + ' | ' + line2)
                     else:
-                        # Foreground dialog: use newlines to separate lines
-                        if debrid_status:
-                            message = line1 + '\n\n' + line2 + '\n\n' + line3
-                        else:
-                            message = line1 + '\n\n' + line2
-                        progressDialog.update(max(1, percent), message)
+                        progressDialog.update(max(1, percent), line1 + '\n\n' + line2)
 
                     if len(info) == 0: break
 
@@ -552,36 +461,15 @@ class sources:
             q = self.sources[i]['quality']
             if q.lower() == 'hd': self.sources[i].update({'quality': '720p'})
 
-        # Debrid Integration: Tag sources with debrid resolver name
-        from resources.lib.modules import debrid
-        filter = []
-
-        # Tag sources that can be resolved with debrid services
-        if debrid.status():
-            for d in debrid.debrid_resolvers:
-                valid_hoster = set([i['source'] for i in self.sources])
-                valid_hoster = [i for i in valid_hoster if d.valid_url('', i)]
-                filter += [dict(list(i.items()) + [('debrid', d.name)]) for i in self.sources if i['source'] in valid_hoster]
-
-        # Add non-debrid sources
-        filter += [i for i in self.sources if not any(d.valid_url('', i['source']) for d in debrid.debrid_resolvers)] if debrid.status() else self.sources
-
-        self.sources = filter
-
-        # Quality filtering with debrid priority (debrid first, then non-debrid)
         filter = []
         if quality in ['0']:
-            filter += [i for i in self.sources if i['quality'] == '4K' and 'debrid' in i]
-            filter += [i for i in self.sources if i['quality'] == '4K' and not 'debrid' in i]
+            filter += [i for i in self.sources if i['quality'] == '4K']
         if quality in ['0', '1']:
-            filter += [i for i in self.sources if i['quality'] == '1440p' and 'debrid' in i]
-            filter += [i for i in self.sources if i['quality'] == '1440p' and not 'debrid' in i]
+            filter += [i for i in self.sources if i['quality'] == '1440p']
         if quality in ['0', '1', '2']:
-            filter += [i for i in self.sources if i['quality'] == '1080p' and 'debrid' in i]
-            filter += [i for i in self.sources if i['quality'] == '1080p' and not 'debrid' in i]
+            filter += [i for i in self.sources if i['quality'] == '1080p']
         if quality in ['0', '1', '2', '3']:
-            filter += [i for i in self.sources if i['quality'] == '720p' and 'debrid' in i]
-            filter += [i for i in self.sources if i['quality'] == '720p' and not 'debrid' in i]
+            filter += [i for i in self.sources if i['quality'] == '720p']
 
         filter += [i for i in self.sources if i['quality'] not in ['4K', '1440p', '1080p', '720p']]
         self.sources = filter
@@ -616,14 +504,6 @@ class sources:
             label = re.sub('\|(?:\s+|)$', '', label)
 
             self.sources[i]['label'] = label.upper()
-
-            # Mark premium/debrid links with color
-            if 'debrid' in self.sources[i]:
-                prem_identify = control.getSetting('prem.identify')
-                color_map = ['skyblue', 'red', 'yellow', 'pink', 'cyan', 'lawngreen', 'gold', 'magenta', 'yellowgreen', '']
-                prem_color = color_map[int(prem_identify)] if prem_identify.isdigit() and int(prem_identify) < len(color_map) else 'skyblue'
-                if prem_color:
-                    self.sources[i]['label'] = '[COLOR %s]%s[/COLOR]' % (prem_color, label.upper())
 
         self.sources = [i for i in self.sources if 'label' in i]
         return self.sources
